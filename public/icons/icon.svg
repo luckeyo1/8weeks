@@ -1,0 +1,9 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="기도 동행">
+  <rect width="512" height="512" rx="112" fill="#6E7D66"/>
+  <!-- 두 사람이 함께: 겹치는 두 원 -->
+  <circle cx="212" cy="220" r="70" fill="#FAFAF8" fill-opacity="0.95"/>
+  <circle cx="300" cy="220" r="70" fill="#FAFAF8" fill-opacity="0.6"/>
+  <!-- 잔잔한 새싹 곡선 -->
+  <path d="M256 300c0 44 30 78 74 92-8-46-38-78-74-92z" fill="#FAFAF8" fill-opacity="0.9"/>
+  <path d="M256 300c0 44-30 78-74 92 8-46 38-78 74-92z" fill="#FAFAF8" fill-opacity="0.7"/>
+</svg>

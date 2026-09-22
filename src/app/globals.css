@@ -1,0 +1,72 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+    /* 노치/홈바 안전영역 대응 */
+    text-rendering: optimizeLegibility;
+  }
+
+  /* 명세 81: focus state 표시 */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary/60 ring-offset-2 ring-offset-canvas;
+  }
+
+  button {
+    @apply select-none;
+  }
+
+  input,
+  textarea {
+    @apply bg-transparent;
+  }
+}
+
+@layer components {
+  /* 모바일 우선: 가운데 정렬된 480px 레이아웃 (명세 39) */
+  .app-shell {
+    @apply mx-auto flex min-h-dvh w-full max-w-app flex-col bg-canvas;
+  }
+
+  .app-main {
+    @apply flex-1 px-5 pb-28 pt-4;
+  }
+
+  .card {
+    @apply rounded-card border border-line bg-surface shadow-card;
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* 스켈레톤 shimmer */
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-line/70;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.6),
+      transparent
+    );
+    animation: shimmer 1.4s infinite;
+  }
+}
