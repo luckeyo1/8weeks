@@ -1,0 +1,24 @@
+{
+  // Cloudflare Workers 배포 설정 (OpenNext Cloudflare 어댑터)
+  // https://opennext.js.org/cloudflare
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "prayer-together",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-25",
+  // Next.js 서버 실행에 Node 호환 필요
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+  // 환경변수(공개)는 아래에 두고, 비밀키는 `wrangler secret put` 또는
+  // 대시보드(Settings → Variables and Secrets)로 주입합니다.
+  // "vars": {
+  //   "NEXT_PUBLIC_SUPABASE_URL": "https://xxxx.supabase.co",
+  //   "NEXT_PUBLIC_SUPABASE_ANON_KEY": "...",
+  //   "NEXT_PUBLIC_SITE_URL": "https://your-worker.workers.dev"
+  // }
+}

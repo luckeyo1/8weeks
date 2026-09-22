@@ -124,6 +124,42 @@ Vercel:
 4. Supabase Redirect URLs 에 배포 도메인 `/auth/callback` 추가
 5. 배포
 
+## Cloudflare 배포 (Vercel 대안)
+
+Cloudflare Workers 에 [OpenNext Cloudflare 어댑터](https://opennext.js.org/cloudflare)로
+배포할 수 있습니다. **Cloudflare 는 Next.js 앱을 호스팅**하고, **로그인·DB 는 그대로
+Supabase** 를 사용합니다(Cloudflare 가 Supabase 를 대체하지 않음).
+
+```bash
+# 1) Cloudflare 로그인 (최초 1회)
+npx wrangler login
+
+# 2) 로컬 미리보기 (Workers 런타임으로 실제 실행)
+cp .dev.vars.example .dev.vars   # 값 채우기
+npm run cf:preview               # http://localhost:8788
+
+# 3) 배포
+npm run cf:deploy
+```
+
+비밀키는 저장소에 두지 말고 아래처럼 주입합니다.
+
+```bash
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+# 공개 값(NEXT_PUBLIC_*)은 wrangler.jsonc 의 "vars" 또는
+# 대시보드 Settings → Variables and Secrets 에 등록
+```
+
+배포 후 워커 도메인(`https://<name>.<계정>.workers.dev` 또는 커스텀 도메인)을
+`NEXT_PUBLIC_SITE_URL` 로 설정하고, Supabase Authentication → URL Configuration 의
+Redirect URLs 에 `https://<도메인>/auth/callback` 을 추가합니다.
+
+> **대시보드 연동 배포**: Cloudflare 대시보드 → Workers & Pages → *Import a repository*
+> 로 GitHub 저장소를 연결하면, 빌드 명령 `npx opennextjs-cloudflare build`,
+> 배포 명령 `npx opennextjs-cloudflare deploy` 로 자동 배포됩니다.
+
+관련 파일: `wrangler.jsonc`, `open-next.config.ts`, `.dev.vars.example`.
+
 ## PWA 확인
 
 - 빌드/프로덕션 실행 후 모바일 브라우저에서 "홈 화면에 추가"
