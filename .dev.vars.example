@@ -1,6 +1,12 @@
-# Cloudflare 로컬 개발용 변수 (wrangler / opennextjs preview).
-# 복사: cp .dev.vars.example .dev.vars  (git 에 커밋하지 않음)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-NEXT_PUBLIC_SITE_URL=http://localhost:8788
+# Cloudflare 로컬 개발용 서버 비밀키 (getCloudflareContext 로 주입).
+# 복사: cp .dev.vars.example .dev.vars   (git 에 커밋하지 않음)
+
+# Google OAuth (Google Cloud Console → 사용자 인증 정보 → OAuth 클라이언트 ID)
+GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# 세션 쿠키 서명용 비밀키 (임의의 긴 랜덤 문자열)
+#   예: openssl rand -base64 32
+SESSION_SECRET=replace-with-a-long-random-string
+
+# 로컬에서도 NEXT_PUBLIC_SITE_URL 을 맞추고 싶으면 .env.local 에 둡니다.

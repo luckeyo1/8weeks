@@ -1,23 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { getMyProfile } from "@/features/auth/service";
-import {
-  AppError,
-  toActionError,
-  ok,
-  type ActionResult,
-} from "@/lib/errors";
+import { getAuthUser, getMyProfile } from "@/features/auth/service";
+import { dbFirst, dbRun, newId } from "@/lib/db";
+import { AppError, toActionError, ok, type ActionResult } from "@/lib/errors";
 import { appTodayISO } from "@/lib/date";
 import { canJoin, computeEffectiveStatus } from "@/lib/status";
 import { isValidShareTokenFormat } from "@/lib/token";
+import type { PrayerRow } from "@/types/db";
 
-/**
- * 함께 기도하기 수락 (명세 17/66).
- * 서버에서 반드시 확인: prayer 존재 / DELETED 아님 / owner 아님 /
- * 중복 아님 / shareToken 유효 / 기간 종료 아님.
- */
+/** 함께 기도하기 수락 (명세 17/66) */
 export async function joinPrayer(
   shareToken: string,
 ): Promise<ActionResult<{ prayerId: string }>> {
@@ -25,59 +17,46 @@ export async function joinPrayer(
     if (!isValidShareTokenFormat(shareToken)) {
       throw new AppError("INVALID_TOKEN");
     }
-
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new AppError("UNAUTHENTICATED");
+    const uid = await getAuthUser();
+    if (!uid) throw new AppError("UNAUTHENTICATED");
     const profile = await getMyProfile();
     if (!profile) throw new AppError("UNAUTHENTICATED");
 
-    const admin = createAdminClient();
-    const { data: prayer } = await admin
-      .from("prayers")
-      .select("*")
-      .eq("share_token", shareToken)
-      .maybeSingle();
-
+    const prayer = await dbFirst<PrayerRow>(
+      "select * from prayers where share_token = ?",
+      [shareToken],
+    );
     if (!prayer) throw new AppError("INVALID_TOKEN");
     if (prayer.status === "DELETED") throw new AppError("PRAYER_DELETED");
-    if (prayer.owner_id === user.id) throw new AppError("OWN_PRAYER");
+    if (prayer.owner_id === uid) throw new AppError("OWN_PRAYER");
 
     const today = appTodayISO();
-    const effective = computeEffectiveStatus(
-      prayer.status,
-      prayer.end_date,
-      today,
-    );
+    const effective = computeEffectiveStatus(prayer.status, prayer.end_date, today);
     if (!canJoin(effective)) throw new AppError("PRAYER_EXPIRED");
 
-    // 이미 참여 중인지 (LEFT 였다면 재참여 허용 → ACTIVE 로 복구)
-    const { data: existing } = await admin
-      .from("prayer_participants")
-      .select("id, status")
-      .eq("prayer_id", prayer.id)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const existing = await dbFirst<{ id: string; status: string }>(
+      "select id, status from prayer_participants where prayer_id = ? and user_id = ?",
+      [prayer.id, uid],
+    );
 
     if (existing) {
-      if (existing.status !== "LEFT") {
-        throw new AppError("ALREADY_JOINED");
-      }
-      await admin
-        .from("prayer_participants")
-        .update({ status: "ACTIVE", left_at: null, joined_at: new Date().toISOString() })
-        .eq("id", existing.id);
+      if (existing.status !== "LEFT") throw new AppError("ALREADY_JOINED");
+      await dbRun(
+        "update prayer_participants set status = 'ACTIVE', left_at = null, joined_at = datetime('now') where id = ?",
+        [existing.id],
+      );
     } else {
-      const { error } = await admin.from("prayer_participants").insert({
-        prayer_id: prayer.id,
-        user_id: user.id,
-      });
-      if (error) {
-        // 동시요청으로 unique 위반 → 이미 참여 중
-        if (error.code === "23505") throw new AppError("ALREADY_JOINED");
-        throw new AppError("UNKNOWN");
+      try {
+        await dbRun(
+          "insert into prayer_participants (id, prayer_id, user_id, status) values (?, ?, ?, 'ACTIVE')",
+          [newId(), prayer.id, uid],
+        );
+      } catch (e) {
+        // 동시요청 unique 위반 → 이미 참여 중
+        if (e instanceof Error && /UNIQUE|constraint/i.test(e.message)) {
+          throw new AppError("ALREADY_JOINED");
+        }
+        throw e;
       }
     }
 
@@ -88,30 +67,22 @@ export async function joinPrayer(
   }
 }
 
-/** 함께 기도 그만하기 (명세 34). checks 기록은 유지. */
-export async function leavePrayer(
-  prayerId: string,
-): Promise<ActionResult> {
+/** 함께 기도 그만하기 (명세 34). checks 기록은 유지 */
+export async function leavePrayer(prayerId: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new AppError("UNAUTHENTICATED");
+    const uid = await getAuthUser();
+    if (!uid) throw new AppError("UNAUTHENTICATED");
 
-    const admin = createAdminClient();
-    const { data: part } = await admin
-      .from("prayer_participants")
-      .select("id")
-      .eq("prayer_id", prayerId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const part = await dbFirst<{ id: string }>(
+      "select id from prayer_participants where prayer_id = ? and user_id = ?",
+      [prayerId, uid],
+    );
     if (!part) throw new AppError("NOT_FOUND");
 
-    await admin
-      .from("prayer_participants")
-      .update({ status: "LEFT", left_at: new Date().toISOString() })
-      .eq("id", part.id);
+    await dbRun(
+      "update prayer_participants set status = 'LEFT', left_at = datetime('now') where id = ?",
+      [part.id],
+    );
 
     revalidatePath("/home");
     revalidatePath("/my-prayers");

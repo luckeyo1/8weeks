@@ -13,12 +13,21 @@
   },
   "observability": {
     "enabled": true
-  }
-  // 환경변수(공개)는 아래에 두고, 비밀키는 `wrangler secret put` 또는
-  // 대시보드(Settings → Variables and Secrets)로 주입합니다.
+  },
+  // Cloudflare D1 (SQLite) 데이터베이스 바인딩.
+  // `wrangler d1 create prayer-together-db` 실행 후 나오는 database_id 로 교체하세요.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "prayer-together-db",
+      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ]
+  // 공개 변수는 아래 "vars" 에, 비밀키(GOOGLE_CLIENT_SECRET, SESSION_SECRET)는
+  // `wrangler secret put` 또는 대시보드(Settings → Variables and Secrets)로 주입합니다.
   // "vars": {
-  //   "NEXT_PUBLIC_SUPABASE_URL": "https://xxxx.supabase.co",
-  //   "NEXT_PUBLIC_SUPABASE_ANON_KEY": "...",
-  //   "NEXT_PUBLIC_SITE_URL": "https://your-worker.workers.dev"
+  //   "NEXT_PUBLIC_SITE_URL": "https://your-worker.workers.dev",
+  //   "GOOGLE_CLIENT_ID": "xxxxx.apps.googleusercontent.com"
   // }
 }

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createAdminClient } from "@/lib/supabase/server";
+import { dbAll, dbCount, dbFirst, dbRun } from "@/lib/db";
 import { publicEnv } from "@/lib/env";
 import { addDaysISO, appTodayISO, daysLeft } from "@/lib/date";
 import { computeEffectiveStatus } from "@/lib/status";
@@ -15,40 +15,33 @@ import type {
 } from "@/types/domain";
 import type { PrayerRow, PrayerUpdateRow } from "@/types/db";
 
-const RECENT_WINDOW_DAYS = 7;
-
 /**
- * 데이터 접근 레이어 (명세 90/93).
- * service_role 클라이언트로 RLS 를 우회하되, 모든 함수는 호출자 userId 를
- * 받아 애플리케이션 레벨에서 권한을 필터링한다. (명세 31)
- *
+ * 데이터 접근 레이어 (Cloudflare D1).
+ * RLS 가 없으므로 모든 함수는 호출자 userId 를 받아 권한을 필터링한다.
  * ACTIVE 인데 종료일이 지난 기도는 조회 시점에 EXPIRED 로 지연 전환한다.
- * (cron 실패에도 상태가 꼬이지 않도록 — 명세 22)
  */
+
+const RECENT_WINDOW_DAYS = 7;
 
 function buildShareUrl(token: string): string {
   return `${publicEnv.siteUrl}/join/${token}`;
 }
 
-/** ACTIVE→EXPIRED 지연 전환을 DB 에 반영 (best-effort) */
-async function reconcileExpiry(prayers: PrayerRow[]): Promise<void> {
-  const today = appTodayISO();
-  const toExpire = prayers.filter(
-    (p) => computeEffectiveStatus(p.status, p.end_date, today) === "EXPIRED" && p.status === "ACTIVE",
+function placeholders(n: number): string {
+  return Array.from({ length: n }, () => "?").join(",");
+}
+
+/** ACTIVE→EXPIRED 지연 전환 (전역 best-effort, 명세 22) */
+async function touchExpired(today: string): Promise<void> {
+  await dbRun(
+    "update prayers set status = 'EXPIRED', updated_at = datetime('now') where status = 'ACTIVE' and end_date < ?",
+    [today],
   );
-  if (toExpire.length === 0) return;
-  const admin = createAdminClient();
-  await admin
-    .from("prayers")
-    .update({ status: "EXPIRED" })
-    .in(
-      "id",
-      toExpire.map((p) => p.id),
-    );
 }
 
 interface ProfileLite {
-  nickname: string;
+  id: string;
+  nickname: string | null;
   profile_image_url: string | null;
 }
 
@@ -56,19 +49,21 @@ async function fetchProfiles(
   userIds: string[],
 ): Promise<Map<string, ProfileLite>> {
   const map = new Map<string, ProfileLite>();
-  if (userIds.length === 0) return map;
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("users")
-    .select("id, nickname, profile_image_url")
-    .in("id", Array.from(new Set(userIds)));
-  for (const u of data ?? []) {
-    map.set(u.id, {
-      nickname: u.nickname,
-      profile_image_url: u.profile_image_url,
-    });
-  }
+  const unique = Array.from(new Set(userIds));
+  if (unique.length === 0) return map;
+  const rows = await dbAll<ProfileLite>(
+    `select id, nickname, profile_image_url from users where id in (${placeholders(unique.length)})`,
+    unique,
+  );
+  for (const u of rows) map.set(u.id, u);
   return map;
+}
+
+function ownerProfile(p: ProfileLite | undefined) {
+  return {
+    nickname: p?.nickname ?? "알 수 없음",
+    profileImageUrl: p?.profile_image_url ?? null,
+  };
 }
 
 function toUpdateView(row: PrayerUpdateRow): PrayerUpdateView {
@@ -80,64 +75,49 @@ function toUpdateView(row: PrayerUpdateRow): PrayerUpdateView {
   };
 }
 
-/**
- * 내가 참여 중인(또는 참여했던) 기도제목 목록.
- * home = ACTIVE 만 / my-prayers "함께 기도 중" 탭 = 전체.
- */
+/** 내가 참여 중인(또는 참여했던) 기도제목 목록 */
 export async function getParticipatingPrayers(
   userId: string,
 ): Promise<ParticipatingPrayer[]> {
-  const admin = createAdminClient();
   const today = appTodayISO();
+  await touchExpired(today);
 
-  const { data: participants } = await admin
-    .from("prayer_participants")
-    .select("id, prayer_id, status")
-    .eq("user_id", userId)
-    .neq("status", "LEFT");
+  const parts = await dbAll<{
+    id: string;
+    prayer_id: string;
+    status: ParticipatingPrayer["participantStatus"];
+  }>(
+    "select id, prayer_id, status from prayer_participants where user_id = ? and status != 'LEFT'",
+    [userId],
+  );
+  if (parts.length === 0) return [];
 
-  if (!participants || participants.length === 0) return [];
-
-  const prayerIds = participants.map((p) => p.prayer_id);
-  const { data: prayers } = await admin
-    .from("prayers")
-    .select("*")
-    .in("id", prayerIds)
-    .neq("status", "DELETED");
-
-  const rows = (prayers ?? []) as PrayerRow[];
-  await reconcileExpiry(rows);
-
-  // 오늘 체크 여부
-  const { data: todayChecks } = await admin
-    .from("prayer_checks")
-    .select("prayer_id")
-    .eq("user_id", userId)
-    .eq("check_date", today)
-    .in("prayer_id", prayerIds);
-  const checkedSet = new Set((todayChecks ?? []).map((c) => c.prayer_id));
-
-  const profiles = await fetchProfiles(rows.map((p) => p.owner_id));
-  const participantByPrayer = new Map(
-    participants.map((p) => [p.prayer_id, p]),
+  const prayerIds = parts.map((p) => p.prayer_id);
+  const prayers = await dbAll<PrayerRow>(
+    `select * from prayers where id in (${placeholders(prayerIds.length)}) and status != 'DELETED'`,
+    prayerIds,
   );
 
-  return rows
+  const todayChecks = await dbAll<{ prayer_id: string }>(
+    `select prayer_id from prayer_checks where user_id = ? and check_date = ? and prayer_id in (${placeholders(prayerIds.length)})`,
+    [userId, today, ...prayerIds],
+  );
+  const checkedSet = new Set(todayChecks.map((c) => c.prayer_id));
+
+  const profiles = await fetchProfiles(prayers.map((p) => p.owner_id));
+  const partByPrayer = new Map(parts.map((p) => [p.prayer_id, p]));
+
+  return prayers
     .map((p): ParticipatingPrayer => {
-      const effective = computeEffectiveStatus(p.status, p.end_date, today);
-      const owner = profiles.get(p.owner_id);
-      const part = participantByPrayer.get(p.id)!;
+      const part = partByPrayer.get(p.id)!;
       return {
         prayerId: p.id,
-        owner: {
-          nickname: owner?.nickname ?? "알 수 없음",
-          profileImageUrl: owner?.profile_image_url ?? null,
-        },
+        owner: ownerProfile(profiles.get(p.owner_id)),
         title: p.title,
         description: p.description,
         startDate: p.start_date,
         endDate: p.end_date,
-        status: effective,
+        status: computeEffectiveStatus(p.status, p.end_date, today),
         daysLeft: daysLeft(p.end_date, today),
         checkedToday: checkedSet.has(p.id),
         participantId: part.id,
@@ -147,7 +127,7 @@ export async function getParticipatingPrayers(
     .sort((a, b) => a.daysLeft - b.daysLeft);
 }
 
-/** 홈 "오늘 함께 기도할 사람" = 참여 중 + ACTIVE 만 (명세 18) */
+/** 홈 "오늘 함께 기도할 사람" = 참여 중 + ACTIVE (명세 18) */
 export async function getTodaysPrayers(
   userId: string,
 ): Promise<ParticipatingPrayer[]> {
@@ -159,34 +139,23 @@ export async function getTodaysPrayers(
 export async function getOwnedPrayers(
   userId: string,
 ): Promise<OwnedPrayerSummary[]> {
-  const admin = createAdminClient();
   const today = appTodayISO();
+  await touchExpired(today);
 
-  const { data: prayers } = await admin
-    .from("prayers")
-    .select("*")
-    .eq("owner_id", userId)
-    .neq("status", "DELETED")
-    .order("created_at", { ascending: false });
+  const prayers = await dbAll<PrayerRow>(
+    "select * from prayers where owner_id = ? and status != 'DELETED' order by created_at desc",
+    [userId],
+  );
+  if (prayers.length === 0) return [];
 
-  const rows = (prayers ?? []) as PrayerRow[];
-  await reconcileExpiry(rows);
+  const ids = prayers.map((p) => p.id);
+  const counts = await dbAll<{ prayer_id: string; n: number }>(
+    `select prayer_id, count(*) as n from prayer_participants where prayer_id in (${placeholders(ids.length)}) and status != 'LEFT' group by prayer_id`,
+    ids,
+  );
+  const countMap = new Map(counts.map((c) => [c.prayer_id, c.n]));
 
-  // 참여자 수 집계
-  const ids = rows.map((r) => r.id);
-  const countMap = new Map<string, number>();
-  if (ids.length > 0) {
-    const { data: parts } = await admin
-      .from("prayer_participants")
-      .select("prayer_id")
-      .in("prayer_id", ids)
-      .neq("status", "LEFT");
-    for (const p of parts ?? []) {
-      countMap.set(p.prayer_id, (countMap.get(p.prayer_id) ?? 0) + 1);
-    }
-  }
-
-  return rows.map((p) => ({
+  return prayers.map((p) => ({
     prayerId: p.id,
     title: p.title,
     description: p.description,
@@ -199,43 +168,33 @@ export async function getOwnedPrayers(
   }));
 }
 
-/** 작성자용 상세 (owner 전용). 권한 없으면 예외. */
+/** 작성자용 상세 (owner 전용) */
 export async function getOwnerPrayerDetail(
   prayerId: string,
   userId: string,
 ): Promise<OwnerPrayerDetail> {
-  const admin = createAdminClient();
   const today = appTodayISO();
+  await touchExpired(today);
 
-  const { data: prayer } = await admin
-    .from("prayers")
-    .select("*")
-    .eq("id", prayerId)
-    .maybeSingle();
-
+  const prayer = await dbFirst<PrayerRow>(
+    "select * from prayers where id = ?",
+    [prayerId],
+  );
   if (!prayer || prayer.status === "DELETED") throw new AppError("NOT_FOUND");
   if (prayer.owner_id !== userId) throw new AppError("FORBIDDEN");
 
-  await reconcileExpiry([prayer as PrayerRow]);
-
-  const [{ count: participantCount }, { count: totalPrayerCount }, { data: updates }] =
-    await Promise.all([
-      admin
-        .from("prayer_participants")
-        .select("id", { count: "exact", head: true })
-        .eq("prayer_id", prayerId)
-        .neq("status", "LEFT"),
-      // 이번 기간 aggregate 기도 횟수 (명세 55: 누가 몇번인지는 노출하지 않음)
-      admin
-        .from("prayer_checks")
-        .select("id", { count: "exact", head: true })
-        .eq("prayer_id", prayerId),
-      admin
-        .from("prayer_updates")
-        .select("*")
-        .eq("prayer_id", prayerId)
-        .order("created_at", { ascending: false }),
-    ]);
+  const participantCount = await dbCount(
+    "select count(*) as n from prayer_participants where prayer_id = ? and status != 'LEFT'",
+    [prayerId],
+  );
+  const totalPrayerCount = await dbCount(
+    "select count(*) as n from prayer_checks where prayer_id = ?",
+    [prayerId],
+  );
+  const updates = await dbAll<PrayerUpdateRow>(
+    "select * from prayer_updates where prayer_id = ? order by created_at desc",
+    [prayerId],
+  );
 
   return {
     prayerId: prayer.id,
@@ -245,84 +204,67 @@ export async function getOwnerPrayerDetail(
     endDate: prayer.end_date,
     status: computeEffectiveStatus(prayer.status, prayer.end_date, today),
     daysLeft: daysLeft(prayer.end_date, today),
-    participantCount: participantCount ?? 0,
+    participantCount,
     extensionCount: prayer.extension_count,
     shareToken: prayer.share_token,
     shareUrl: buildShareUrl(prayer.share_token),
-    totalPrayerCount: totalPrayerCount ?? 0,
-    updates: ((updates ?? []) as PrayerUpdateRow[]).map(toUpdateView),
+    totalPrayerCount,
+    updates: updates.map(toUpdateView),
     closedAt: prayer.closed_at,
   };
 }
 
-/** 참여자용 상세 (명세 20/28). 참여자가 아니면 예외. */
+/** 참여자용 상세 (명세 20/28) */
 export async function getParticipantPrayerDetail(
   prayerId: string,
   userId: string,
 ): Promise<ParticipantPrayerDetail> {
-  const admin = createAdminClient();
   const today = appTodayISO();
+  await touchExpired(today);
 
-  const { data: part } = await admin
-    .from("prayer_participants")
-    .select("id, status")
-    .eq("prayer_id", prayerId)
-    .eq("user_id", userId)
-    .maybeSingle();
+  const part = await dbFirst<{
+    id: string;
+    status: ParticipantPrayerDetail["participantStatus"];
+  }>(
+    "select id, status from prayer_participants where prayer_id = ? and user_id = ?",
+    [prayerId, userId],
+  );
   if (!part || part.status === "LEFT") throw new AppError("FORBIDDEN");
 
-  const { data: prayer } = await admin
-    .from("prayers")
-    .select("*")
-    .eq("id", prayerId)
-    .maybeSingle();
+  const prayer = await dbFirst<PrayerRow>(
+    "select * from prayers where id = ?",
+    [prayerId],
+  );
   if (!prayer || prayer.status === "DELETED") throw new AppError("NOT_FOUND");
 
-  await reconcileExpiry([prayer as PrayerRow]);
   const effective = computeEffectiveStatus(prayer.status, prayer.end_date, today);
 
-  // 오늘 체크 여부
-  const { data: todayCheck } = await admin
-    .from("prayer_checks")
-    .select("id")
-    .eq("prayer_id", prayerId)
-    .eq("user_id", userId)
-    .eq("check_date", today)
-    .maybeSingle();
+  const todayCheck = await dbFirst<{ id: string }>(
+    "select id from prayer_checks where prayer_id = ? and user_id = ? and check_date = ?",
+    [prayerId, userId, today],
+  );
 
-  // 지난 7일 중 함께 기도한 일수 (명세 20)
   const windowStart = addDaysISO(today, -(RECENT_WINDOW_DAYS - 1));
-  const { data: recentChecks } = await admin
-    .from("prayer_checks")
-    .select("check_date")
-    .eq("prayer_id", prayerId)
-    .eq("user_id", userId)
-    .gte("check_date", windowStart)
-    .lte("check_date", today);
-  const recentDays = new Set((recentChecks ?? []).map((c) => c.check_date)).size;
+  const recentChecks = await dbAll<{ check_date: string }>(
+    "select check_date from prayer_checks where prayer_id = ? and user_id = ? and check_date >= ? and check_date <= ?",
+    [prayerId, userId, windowStart, today],
+  );
+  const recentDays = new Set(recentChecks.map((c) => c.check_date)).size;
 
-  // 종료 시 최신 업데이트
   let latestUpdate: PrayerUpdateView | null = null;
   if (effective !== "ACTIVE") {
-    const { data: upd } = await admin
-      .from("prayer_updates")
-      .select("*")
-      .eq("prayer_id", prayerId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (upd) latestUpdate = toUpdateView(upd as PrayerUpdateRow);
+    const upd = await dbFirst<PrayerUpdateRow>(
+      "select * from prayer_updates where prayer_id = ? order by created_at desc limit 1",
+      [prayerId],
+    );
+    if (upd) latestUpdate = toUpdateView(upd);
   }
 
   const profiles = await fetchProfiles([prayer.owner_id]);
-  const owner = profiles.get(prayer.owner_id);
 
   return {
     prayerId: prayer.id,
-    owner: {
-      nickname: owner?.nickname ?? "알 수 없음",
-      profileImageUrl: owner?.profile_image_url ?? null,
-    },
+    owner: ownerProfile(profiles.get(prayer.owner_id)),
     title: prayer.title,
     description: prayer.description,
     startDate: prayer.start_date,
@@ -338,98 +280,71 @@ export async function getParticipantPrayerDetail(
   };
 }
 
-/** 특정 사용자가 이 기도의 owner 인지 (라우팅 분기용) */
+/** 라우팅 분기용 관계 판별 */
 export async function getViewerRelation(
   prayerId: string,
   userId: string,
 ): Promise<"OWNER" | "PARTICIPANT" | "NONE"> {
-  const admin = createAdminClient();
-  const { data: prayer } = await admin
-    .from("prayers")
-    .select("owner_id, status")
-    .eq("id", prayerId)
-    .maybeSingle();
+  const prayer = await dbFirst<{ owner_id: string; status: string }>(
+    "select owner_id, status from prayers where id = ?",
+    [prayerId],
+  );
   if (!prayer || prayer.status === "DELETED") return "NONE";
   if (prayer.owner_id === userId) return "OWNER";
-  const { data: part } = await admin
-    .from("prayer_participants")
-    .select("status")
-    .eq("prayer_id", prayerId)
-    .eq("user_id", userId)
-    .maybeSingle();
+  const part = await dbFirst<{ status: string }>(
+    "select status from prayer_participants where prayer_id = ? and user_id = ?",
+    [prayerId, userId],
+  );
   if (part && part.status !== "LEFT") return "PARTICIPANT";
   return "NONE";
 }
 
-/**
- * shareToken 으로 join 미리보기 (비로그인 포함, 명세 13/32).
- * 민감정보(email/prayer id) 미노출. viewerId 없으면 GUEST.
- */
+/** shareToken join 미리보기 (비로그인 포함, 명세 13/32) */
 export async function getJoinPreview(
   shareToken: string,
   viewerId: string | null,
 ): Promise<JoinPreview> {
-  const admin = createAdminClient();
   const today = appTodayISO();
 
-  const { data: prayer } = await admin
-    .from("prayers")
-    .select("*")
-    .eq("share_token", shareToken)
-    .maybeSingle();
-
+  const prayer = await dbFirst<PrayerRow>(
+    "select * from prayers where share_token = ?",
+    [shareToken],
+  );
   if (!prayer) throw new AppError("INVALID_TOKEN");
   if (prayer.status === "DELETED") throw new AppError("PRAYER_DELETED");
 
-  await reconcileExpiry([prayer as PrayerRow]);
+  await touchExpired(today);
+  const effective = computeEffectiveStatus(prayer.status, prayer.end_date, today);
 
-  const effective = computeEffectiveStatus(
-    prayer.status,
-    prayer.end_date,
-    today,
-  );
-
-  const profiles = await fetchProfiles([prayer.owner_id]);
-  const owner = profiles.get(prayer.owner_id);
-
-  // viewer 관계 판별
   let relation: JoinPreview["viewerRelation"] = viewerId ? "NONE" : "GUEST";
   if (viewerId) {
     if (prayer.owner_id === viewerId) {
       relation = "OWNER";
     } else {
-      const { data: part } = await admin
-        .from("prayer_participants")
-        .select("status")
-        .eq("prayer_id", prayer.id)
-        .eq("user_id", viewerId)
-        .maybeSingle();
+      const part = await dbFirst<{ status: string }>(
+        "select status from prayer_participants where prayer_id = ? and user_id = ?",
+        [prayer.id, viewerId],
+      );
       if (part && part.status !== "LEFT") relation = "PARTICIPANT";
     }
   }
 
-  // 종료된 기도의 최신 업데이트 (참여자/작성자에게 결과 노출용, 명세 28)
   let latestUpdate: PrayerUpdateView | null = null;
   if (effective !== "ACTIVE") {
-    const { data: upd } = await admin
-      .from("prayer_updates")
-      .select("*")
-      .eq("prayer_id", prayer.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (upd) latestUpdate = toUpdateView(upd as PrayerUpdateRow);
+    const upd = await dbFirst<PrayerUpdateRow>(
+      "select * from prayer_updates where prayer_id = ? order by created_at desc limit 1",
+      [prayer.id],
+    );
+    if (upd) latestUpdate = toUpdateView(upd);
   }
+
+  const profiles = await fetchProfiles([prayer.owner_id]);
 
   return {
     shareToken,
-    // 권한 있는 뷰어에게만 prayerId 노출
     prayerId:
       relation === "OWNER" || relation === "PARTICIPANT" ? prayer.id : null,
-    owner: {
-      nickname: owner?.nickname ?? "알 수 없음",
-      profileImageUrl: owner?.profile_image_url ?? null,
-    },
+    owner: ownerProfile(profiles.get(prayer.owner_id)),
     title: prayer.title,
     description: prayer.description,
     startDate: prayer.start_date,

@@ -35,7 +35,7 @@ export default async function JoinPage({
   const user = await getAuthUser();
 
   try {
-    const preview = await getJoinPreview(token, user?.id ?? null);
+    const preview = await getJoinPreview(token, user);
     return (
       <main className="app-shell">
         <JoinView preview={preview} isAuthed={Boolean(user)} />

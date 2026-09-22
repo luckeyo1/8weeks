@@ -13,16 +13,15 @@ test("랜딩 페이지가 히어로와 CTA를 보여준다 (명세 61)", async (
   await expect(page.getByRole("link", { name: "시작하기" })).toBeVisible();
 });
 
-test("시작하기 → 로그인 화면 (명세 4)", async ({ page }) => {
+test("시작하기 → 로그인 화면 (Google, 명세 4)", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "시작하기" }).click();
   await expect(page).toHaveURL(/\/login/);
   await expect(
     page.getByRole("button", { name: "Google로 계속하기" }),
   ).toBeVisible();
-  await expect(
-    page.getByPlaceholder("이메일 주소"),
-  ).toBeVisible();
+  // Google 로그인 시작 경로로 연결
+  await expect(page.locator('a[href^="/auth/google"]')).toBeVisible();
 });
 
 test("잘못된 초대 토큰은 서비스 스타일 안내를 보여준다 (명세 79)", async ({

@@ -1,55 +1,51 @@
 import "server-only";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/server";
+import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth/session";
+import { getCfEnv } from "@/lib/cf";
+import { dbFirst } from "@/lib/db";
 import type { MyProfile } from "@/types/domain";
+import type { UserRow } from "@/types/db";
 
-/** 현재 로그인된 auth 사용자 (없으면 null) */
-export async function getAuthUser(): Promise<User | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+/** 세션 쿠키에서 현재 사용자 id (없거나 무효면 null) */
+export async function getAuthUser(): Promise<string | null> {
+  const store = await cookies();
+  const token = store.get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+  const env = await getCfEnv();
+  const secret = env.SESSION_SECRET ?? process.env.SESSION_SECRET;
+  if (!secret) return null;
+  return verifySessionToken(token, secret);
 }
 
-/** 현재 사용자의 프로필 (온보딩 완료 여부 판단) */
+/** 온보딩 완료(닉네임 존재) 프로필. 미완료면 null */
 export async function getMyProfile(): Promise<MyProfile | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data } = await supabase
-    .from("users")
-    .select("id, nickname, profile_image_url")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!data) return null;
+  const uid = await getAuthUser();
+  if (!uid) return null;
+  const row = await dbFirst<UserRow>(
+    "select id, nickname, profile_image_url from users where id = ?",
+    [uid],
+  );
+  if (!row || !row.nickname) return null;
   return {
-    id: data.id,
-    nickname: data.nickname,
-    profileImageUrl: data.profile_image_url,
+    id: row.id,
+    nickname: row.nickname,
+    profileImageUrl: row.profile_image_url,
   };
 }
 
 /**
- * 인증 + 온보딩 완료를 보장. (보호된 페이지에서 호출)
- * - 미로그인 → /login (returnUrl 유지)
- * - 로그인했으나 프로필 없음 → /onboarding
+ * 인증 + 온보딩 완료 보장.
+ * 미로그인 → /login, 로그인했으나 닉네임 없음 → /onboarding
  */
 export async function requireProfile(returnTo?: string): Promise<MyProfile> {
-  const user = await getAuthUser();
-  if (!user) {
+  const uid = await getAuthUser();
+  if (!uid) {
     const q = returnTo ? `?returnUrl=${encodeURIComponent(returnTo)}` : "";
     redirect(`/login${q}`);
   }
   const profile = await getMyProfile();
-  if (!profile) {
-    redirect("/onboarding");
-  }
+  if (!profile) redirect("/onboarding");
   return profile;
 }

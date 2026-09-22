@@ -1,8 +1,12 @@
-import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
-
-// Cloudflare 로컬 개발에서 getCloudflareContext 등을 쓸 수 있게 초기화.
-// `next dev` 외에는 no-op 이라 Vercel/일반 빌드에 영향 없음.
-initOpenNextCloudflareForDev();
+// Cloudflare 로컬 개발에서만 getCloudflareContext(D1 등)를 초기화한다.
+// production 빌드(next build / opennextjs-cloudflare build)에서는 실행하지 않아
+// 빌드 중 miniflare 기동/파일락 문제를 피한다.
+if (process.env.NODE_ENV === "development") {
+  const { initOpenNextCloudflareForDev } = await import(
+    "@opennextjs/cloudflare"
+  );
+  await initOpenNextCloudflareForDev();
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

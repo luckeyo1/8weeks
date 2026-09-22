@@ -14,6 +14,8 @@
      → 기간 종료 → 업데이트(연장/변화/응답/마침) → 다시 만남
 ```
 
+이 저장소는 **Cloudflare 스택**으로 구성되어 있습니다(호스팅·DB·인증 모두 Cloudflare).
+
 ---
 
 ## 기술 스택
@@ -23,75 +25,59 @@
 | 프레임워크 | Next.js 15 (App Router) + React 18 |
 | 언어 | TypeScript (strict) |
 | 스타일 | Tailwind CSS, Pretendard |
-| 인증 | Supabase Auth (Google OAuth / 이메일 매직링크, 비밀번호 미사용) |
-| DB | Supabase PostgreSQL + Row Level Security |
+| 호스팅 | **Cloudflare Workers** (OpenNext 어댑터) |
+| DB | **Cloudflare D1** (SQLite) |
+| 인증 | **Google OAuth 2.0 + 서명된 세션 쿠키(HMAC)** — 비밀번호 없음 |
 | 폼/검증 | React Hook Form + Zod (클라이언트 + 서버 이중 검증) |
 | QR | qrcode.react |
-| 날짜 | date-fns / Intl |
 | PWA | manifest + service worker |
-| 배포 | Vercel |
 | 테스트 | Vitest(단위) + Playwright(E2E) |
+
+> **참고:** 명세의 매직링크 로그인은 이메일 발송 인프라가 필요해 Cloudflare 단독
+> 구성에서는 제외했습니다. "비밀번호 없는 로그인"은 Google OAuth 로 제공합니다.
+> (매직링크가 필요하면 Resend 등 이메일 서비스를 붙일 수 있습니다 — Known issues 참고)
 
 ---
 
-## 빠른 시작 (로컬)
-
-### 1. 사전 준비
+## 사전 준비
 
 - Node.js 20+ (권장 22)
-- [Supabase CLI](https://supabase.com/docs/guides/cli) (로컬 DB 사용 시)
+- Cloudflare 계정 + [Wrangler](https://developers.cloudflare.com/workers/wrangler/)
+  (`npx wrangler`)
+- Google OAuth 클라이언트 (아래 설정 참고)
 
-### 2. 의존성 설치
+### Google OAuth 설정
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → **API 및 서비스 →
+   사용자 인증 정보 → OAuth 클라이언트 ID 만들기 → 웹 애플리케이션**
+2. **승인된 리디렉션 URI** 에 추가:
+   - 로컬: `http://localhost:3000/auth/callback`
+   - 배포: `https://<배포도메인>/auth/callback`
+3. 발급된 **클라이언트 ID / 클라이언트 보안 비밀** 을 아래 환경변수로 사용
+
+---
+
+## 로컬 개발
 
 ```bash
 npm install
+
+# 1) 공개 값 (.env.local)
+cp .env.example .env.local        # NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# 2) 서버 비밀키 (.dev.vars) — Google, 세션키
+cp .dev.vars.example .dev.vars    # GOOGLE_CLIENT_ID / SECRET / SESSION_SECRET 채우기
+
+# 3) 로컬 D1 준비 (SQLite)
+npm run db:migrate:local          # 스키마 적용 (migrations/0001_init.sql)
+npm run db:seed:local             # 개발용 seed (선택)
+
+# 4) 개발 서버
+npm run dev                       # http://localhost:3000
 ```
 
-### 3. 환경변수
-
-`.env.example` 를 복사해 `.env.local` 을 만듭니다.
-
-```bash
-cp .env.example .env.local
-```
-
-| 변수 | 설명 |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase 프로젝트 URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon (public) key |
-| `SUPABASE_SERVICE_ROLE_KEY` | **서버 전용.** service role key. 절대 클라이언트에 노출 금지 |
-| `NEXT_PUBLIC_SITE_URL` | 공유 링크/QR/OG 에 쓰는 서비스 주소 (배포 시 실제 도메인) |
-| `NEXT_PUBLIC_APP_TIME_ZONE` | (선택) "오늘" 판정 기준 timezone. 기본 `Asia/Seoul` |
-
-### 4. Supabase 설정
-
-**A) Supabase CLI 로 로컬 DB (권장, 개발용)**
-
-```bash
-supabase start           # 로컬 스택 기동
-supabase db reset        # migrations + seed 적용
-```
-
-`supabase start` 가 출력하는 `API URL`, `anon key`, `service_role key` 를
-`.env.local` 에 넣습니다.
-
-**B) Supabase 클라우드 프로젝트**
-
-1. 프로젝트 생성 후 Settings → API 에서 URL/키 확인 → `.env.local`
-2. SQL Editor 에서 순서대로 실행:
-   - `supabase/migrations/0001_init.sql` (스키마)
-   - `supabase/migrations/0002_rls.sql` (RLS 정책)
-   - (개발 데이터가 필요하면) `supabase/seed.sql`
-3. Authentication → Providers 에서 **Google** 활성화, **Email(매직링크)** 활성화
-4. Authentication → URL Configuration 의 Redirect URLs 에 다음 추가:
-   - `http://localhost:3000/auth/callback`
-   - `https://<배포도메인>/auth/callback`
-
-### 5. 실행
-
-```bash
-npm run dev      # http://localhost:3000
-```
+`next dev` 는 OpenNext 의 `initOpenNextCloudflareForDev()` 로 D1(로컬 SQLite)과
+`.dev.vars` 를 주입합니다.
 
 ---
 
@@ -100,72 +86,59 @@ npm run dev      # http://localhost:3000
 | 명령 | 설명 |
 | --- | --- |
 | `npm run dev` | 개발 서버 |
-| `npm run build` | 프로덕션 빌드 |
-| `npm run start` | 빌드 결과 실행 |
-| `npm run lint` | ESLint |
-| `npm run typecheck` | 타입 검사 (`tsc --noEmit`) |
+| `npm run build` | 프로덕션 빌드 (일반 Next) |
+| `npm run typecheck` | 타입 검사 |
 | `npm test` | 단위 테스트 (Vitest) |
-| `npm run test:e2e` | E2E 테스트 (Playwright) |
+| `npm run test:e2e` | E2E (Playwright) |
+| `npm run cf:build` | Cloudflare 용 빌드 (OpenNext) |
+| `npm run cf:preview` | Workers 런타임 로컬 미리보기 |
+| `npm run cf:deploy` | 빌드 + Cloudflare 배포 |
+| `npm run db:migrate:local` / `:remote` | D1 마이그레이션 적용 |
+| `npm run db:seed:local` / `:remote` | D1 seed 실행 |
 
 ---
 
-## 프로덕션 빌드 & Vercel 배포
+## Cloudflare 배포
 
 ```bash
-npm run build && npm run start
-```
-
-Vercel:
-
-1. 저장소를 Vercel 에 연결
-2. Environment Variables 에 위 4개 변수 등록
-   (`SUPABASE_SERVICE_ROLE_KEY` 는 Production/Preview 서버 환경에만)
-3. `NEXT_PUBLIC_SITE_URL` 을 실제 배포 도메인으로 설정
-4. Supabase Redirect URLs 에 배포 도메인 `/auth/callback` 추가
-5. 배포
-
-## Cloudflare 배포 (Vercel 대안)
-
-Cloudflare Workers 에 [OpenNext Cloudflare 어댑터](https://opennext.js.org/cloudflare)로
-배포할 수 있습니다. **Cloudflare 는 Next.js 앱을 호스팅**하고, **로그인·DB 는 그대로
-Supabase** 를 사용합니다(Cloudflare 가 Supabase 를 대체하지 않음).
-
-```bash
-# 1) Cloudflare 로그인 (최초 1회)
+# 0) 로그인
 npx wrangler login
 
-# 2) 로컬 미리보기 (Workers 런타임으로 실제 실행)
-cp .dev.vars.example .dev.vars   # 값 채우기
-npm run cf:preview               # http://localhost:8788
+# 1) D1 데이터베이스 생성 → 출력된 database_id 를 wrangler.jsonc 에 반영
+npx wrangler d1 create prayer-together-db
+#   wrangler.jsonc 의 "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID" 교체
 
-# 3) 배포
+# 2) 원격 D1 마이그레이션 (+ 필요 시 seed)
+npm run db:migrate:remote
+
+# 3) 비밀키 등록
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+npx wrangler secret put SESSION_SECRET
+#   공개 값 NEXT_PUBLIC_SITE_URL 은 wrangler.jsonc 의 "vars" 또는 대시보드에 등록
+
+# 4) 배포
 npm run cf:deploy
 ```
 
-비밀키는 저장소에 두지 말고 아래처럼 주입합니다.
+배포 후:
 
-```bash
-npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-# 공개 값(NEXT_PUBLIC_*)은 wrangler.jsonc 의 "vars" 또는
-# 대시보드 Settings → Variables and Secrets 에 등록
-```
+- 워커 도메인(`https://<name>.<계정>.workers.dev` 또는 커스텀 도메인)을
+  `NEXT_PUBLIC_SITE_URL` 로 설정
+- Google OAuth 승인된 리디렉션 URI 에 `https://<도메인>/auth/callback` 추가
 
-배포 후 워커 도메인(`https://<name>.<계정>.workers.dev` 또는 커스텀 도메인)을
-`NEXT_PUBLIC_SITE_URL` 로 설정하고, Supabase Authentication → URL Configuration 의
-Redirect URLs 에 `https://<도메인>/auth/callback` 을 추가합니다.
+> **대시보드 연동 배포**: Workers & Pages → *Import a repository* → 빌드 명령
+> `npx opennextjs-cloudflare build`, 배포 명령 `npx opennextjs-cloudflare deploy`.
+> Variables and Secrets 에 위 값들을 등록하고, D1 바인딩 `DB` 를 연결합니다.
 
-> **대시보드 연동 배포**: Cloudflare 대시보드 → Workers & Pages → *Import a repository*
-> 로 GitHub 저장소를 연결하면, 빌드 명령 `npx opennextjs-cloudflare build`,
-> 배포 명령 `npx opennextjs-cloudflare deploy` 로 자동 배포됩니다.
-
-관련 파일: `wrangler.jsonc`, `open-next.config.ts`, `.dev.vars.example`.
+관련 파일: `wrangler.jsonc`, `open-next.config.ts`, `migrations/`, `seed.sql`,
+`.dev.vars.example`.
 
 ## PWA 확인
 
-- 빌드/프로덕션 실행 후 모바일 브라우저에서 "홈 화면에 추가"
-- standalone 으로 실행되는지, 앱 아이콘/테마 컬러가 적용되는지 확인
-- 서비스워커는 `NODE_ENV=production` 에서만 등록됩니다 (`public/sw.js`)
-- 아이콘은 `public/icons/*.svg` 사용. 스토어 수준 배포 시 192/512 PNG 추가 권장
+- 프로덕션 실행 후 모바일 브라우저에서 "홈 화면에 추가"
+- standalone 실행 / 아이콘 / 테마 컬러 확인 (`public/icons/*.svg`, `manifest`)
+- 서비스워커는 `NODE_ENV=production` 에서만 등록 (`public/sw.js`)
 
 ---
 
@@ -173,27 +146,19 @@ Redirect URLs 에 `https://<도메인>/auth/callback` 을 추가합니다.
 
 ### 단위 테스트 (Vitest)
 
-`기간 계산 / timezone 날짜 변환 / shareToken 생성 / status transition /
-기도 체크 중복 검사` 등 순수 로직을 검증합니다. (명세 89)
+`기간 계산 / timezone 날짜 변환 / shareToken 생성 / status transition` 등 순수
+로직을 검증합니다.
 
 ```bash
 npm test
 ```
 
-### E2E 테스트 (Playwright)
+### E2E (Playwright)
 
-- `tests/e2e/public.spec.ts` — 로그인 불필요한 공개 흐름(랜딩, 로그인 진입,
-  잘못된 초대 토큰, 보호 페이지 리다이렉트)
-- `tests/e2e/qa-scenarios.spec.ts` — 명세 69~78 의 핵심 시나리오.
-  로그인 세션이 필요하므로 아래 준비 후 `E2E_AUTH_READY=1` 로 활성화합니다.
-  - Supabase 테스트 프로젝트에 migration + seed 적용
-  - 사용자 A/B 의 사전 로그인 세션(storageState) 준비
-  - `E2E_BASE_URL` 로 대상 환경 지정
-
-```bash
-npm run build
-npm run test:e2e
-```
+- `tests/e2e/public.spec.ts` — 로그인 불필요 흐름(랜딩, 로그인 진입, 잘못된 초대
+  토큰, 보호 페이지 리다이렉트)
+- `tests/e2e/qa-scenarios.spec.ts` — 명세 69~78 시나리오. 로그인 세션이 필요하며,
+  `pt_session` 쿠키를 발급한 storageState 준비 후 `E2E_AUTH_READY=1` 로 활성화합니다.
 
 ---
 
@@ -203,35 +168,38 @@ npm run test:e2e
 src/
   app/                      # 라우트 (App Router)
     (app)/                  #   로그인+온보딩 완료 사용자 영역 (BottomNav)
-      home/                 #   홈: 오늘 함께 기도할 사람
-      my-prayers/           #   나의 기도 / 함께 기도 중
-      prayers/new/          #   기도제목 생성
-      prayers/[id]/         #   상세 (작성자/참여자 뷰 분기)
-      profile/              #   내 정보
+      home/ my-prayers/ profile/
+      prayers/new/  prayers/[id]/
     join/[token]/           #   공유 링크/QR 진입 (공개, noindex)
-    login/ onboarding/      #   인증/온보딩
-    auth/callback/          #   OAuth/매직링크 콜백 (returnUrl 복귀)
-    manifest.ts robots.ts   #   PWA / SEO
-  components/               # 공통 UI (Button, Input, Card, Modal, Toast ...)
-  features/                 # 기능별 (auth / prayer / participant / check)
-  services/                 # DB 접근 레이어 (권한 필터링)
-  lib/                      # env, supabase 클라이언트, date, token, status, errors
-  types/                    # db(스키마) / domain(화면용) 타입
-supabase/
-  migrations/               # 0001_init.sql, 0002_rls.sql
-  seed.sql                  # 개발용 seed (사용자 4, 기도제목 5)
+    login/ onboarding/
+    auth/google/            #   Google 로그인 시작 (state 쿠키 → 동의 화면)
+    auth/callback/          #   code 교환 → 사용자 upsert → 세션 쿠키 발급
+    manifest.ts robots.ts
+  components/               # 공통 UI
+  features/                 # auth / prayer / participant / check
+  services/                 # D1 데이터 접근 레이어 (권한 필터링)
+  lib/
+    cf.ts                   #   Cloudflare 컨텍스트(D1/secret) 접근
+    db.ts                   #   D1 얇은 쿼리 헬퍼
+    auth/session.ts         #   HMAC 서명 세션 토큰
+    auth/google.ts          #   Google OAuth 헬퍼
+    date.ts token.ts status.ts errors.ts
+  types/                    # db(Row) / domain(화면용) 타입
+migrations/0001_init.sql    # D1 스키마 (SQLite)
+seed.sql                    # 개발용 seed (마이그레이션과 분리)
+wrangler.jsonc              # Workers + D1 바인딩
+open-next.config.ts
 ```
 
 ### 보안 모델 (명세 31~33)
 
 - **서버가 권한의 근거.** 모든 조회/변경은 서버(Server Actions/service)에서
-  현재 사용자 기준으로 검증합니다. service_role 클라이언트는 서버에서만
-  쓰이고, 화면에는 필요한 필드(닉네임/프로필/기도 내용)만 내려갑니다.
-  email·내부 id 는 노출하지 않습니다.
-- **RLS 는 2차 방어선.** anon key 로의 직접 접근을 owner/participant 기준으로
-  차단합니다 (`0002_rls.sql`).
-- **shareToken** 은 prayer id 와 분리된 22자 난수(base62)로, 추측 불가능합니다.
-- **삭제는 soft delete** (`status = DELETED`) 로 처리하고 화면에서 감춥니다.
+  현재 사용자 기준으로 검증합니다. D1 에는 RLS 가 없으므로, 클라이언트에서 DB 에
+  직접 접근하는 경로 자체를 두지 않고 서버 레이어에서만 접근합니다.
+- **세션**은 HMAC-SHA256 으로 서명한 상태 없는 쿠키(`pt_session`, httpOnly)입니다.
+  위조 불가하며 만료(exp)를 포함합니다.
+- **shareToken** 은 prayer id 와 분리된 22자 난수(base62)로 추측 불가능합니다.
+- **삭제는 soft delete**(`status='DELETED'`) 로 처리하고 화면에서 감춥니다.
 - **SEO**: 랜딩만 색인 허용, `join`/`prayers`/`profile` 등은 noindex + robots 차단.
   공유 OG 미리보기에는 실제 기도 내용을 넣지 않습니다.
 
@@ -239,44 +207,39 @@ supabase/
 
 ## 기능 목록 (완료 기준, 명세 98)
 
-- [x] 가입 (Google / 매직링크, 비밀번호 없음) + 온보딩(닉네임)
+- [x] 가입 (Google 로그인, 비밀번호 없음) + 온보딩(닉네임)
 - [x] 기도제목 생성 (제목 50자, 상세 500자, 기간 7/14/30/직접 1~90일)
 - [x] shareToken + QR 생성, 링크 복사
-- [x] 공유 링크/QR 진입 → 비로그인 미리보기 → 로그인 후 원래 링크 복귀(returnUrl)
-- [x] 본인 기도 참여 방지 / 중복 참여 방지 (DB unique + 서버 검증)
-- [x] 참여 확인 → 홈 "오늘 함께 기도할 사람" 자동 노출
-- [x] 매일 기도 체크 (같은 날 중복 불가 — DB unique, 새로고침 후 유지)
-- [x] 종료일 자동 처리 (진입 시 서버 재확인 — cron 비의존)
+- [x] 공유 진입 → 비로그인 미리보기 → 로그인 후 원래 링크 복귀(returnUrl)
+- [x] 본인/중복 참여 방지 (서버 검증 + D1 unique)
+- [x] 매일 기도 체크 (같은 날 중복 불가, 새로고침 유지)
+- [x] 종료일 자동 처리 (진입 시 서버 재확인 — 배치 비의존)
 - [x] 기간 연장 / 변화 / 응답 / 마침 + 참여자에게 결과 표시
-- [x] 참여 중단 (체크 기록 유지)
-- [x] 기도제목 삭제 (soft delete)
+- [x] 참여 중단 (체크 기록 유지), 소프트 삭제
 - [x] URL 직접 접근 권한 검증 / 에러·로딩·빈 상태 / 모바일 UI / PWA
-- [x] 관계의 숫자화 금지 (개별 기도 횟수 비노출, 기간 aggregate 만 노출)
+- [x] 관계의 숫자화 금지 (개별 기도 횟수 비노출, 기간 aggregate 만)
 
 ---
 
 ## Known issues / 향후 과제
 
-- **알림 미구현 (명세 21/58/59).** 데이터 구조(`prayer_updates`)는 확장 가능하게
-  두었으나, Push/일일 요약 알림은 MVP 범위 밖입니다.
-- **프로필 이미지 업로드 미구현.** 컬럼(`profile_image_url`)은 있으나 온보딩에서는
-  닉네임만 받습니다. 이미지 없으면 닉네임 첫 글자 아바타로 대체합니다.
-- **"오늘" 기준 timezone.** 명세는 "사용자 local timezone"을 말하지만, 서버 검증과
-  하이드레이션에서 날짜가 꼬이지 않도록 서버·클라이언트가 **동일한 서비스
-  timezone(기본 Asia/Seoul)** 으로 "오늘"을 계산합니다. `NEXT_PUBLIC_APP_TIME_ZONE`
-  로 변경할 수 있습니다.
-- **종료일 배치.** 만료는 조회 시점에 지연 전환(lazy)합니다. 대량 트래픽에서는
-  별도 cron 을 붙일 수 있으나, 조회 시 재확인하므로 cron 실패에도 상태가 꼬이지
-  않습니다.
-- **PWA 아이콘**은 SVG 만 포함합니다. 앱스토어/일부 구형 iOS 대응이 필요하면
-  192/512 PNG 를 추가하세요.
-- **E2E 인증 시나리오**는 seed 세션 준비가 필요합니다(위 테스트 항목 참고).
+- **매직링크 로그인 미포함.** Cloudflare 단독 구성이라 이메일 발송 인프라가 없어
+  Google OAuth 로 대체했습니다. 필요하면 Resend/MailChannels 등을 붙여 매직링크를
+  추가할 수 있습니다(세션 발급 로직은 그대로 재사용 가능).
+- **알림 미구현 (명세 21/58/59).** `prayer_updates` 로 확장 여지는 두었습니다.
+- **프로필 이미지 업로드 미구현.** Google 프로필 사진을 기본 아바타로 사용하며,
+  없으면 닉네임 첫 글자로 대체합니다.
+- **"오늘" 기준 timezone.** 서버·클라 동일한 서비스 timezone(기본 Asia/Seoul)으로
+  계산합니다. `NEXT_PUBLIC_APP_TIME_ZONE` 로 변경 가능.
+- **종료일 전환**은 조회 시 지연(lazy) 처리합니다. 대량 트래픽에서는 Cron Trigger 로
+  주기적 sweep 을 붙일 수 있습니다.
+- **E2E 인증 시나리오**는 세션 쿠키 storageState 준비 후 실행합니다.
 
 ---
 
 ## 제품 원칙 (요약)
 
 - SNS 처럼 만들지 않습니다. 기도제목보다 **사람**이 먼저 보입니다.
-- 매일 사용은 짧고 부담 없게. 죄책감을 주는 UI(불참일 강조 등)를 쓰지 않습니다.
+- 매일 사용은 짧고 부담 없게. 죄책감을 주는 UI 를 쓰지 않습니다.
 - 차분하고 현대적인 톤. 과한 종교적 이미지·마케팅 카피·의미 없는 숫자 지표를
   넣지 않습니다.

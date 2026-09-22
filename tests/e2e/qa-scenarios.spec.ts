@@ -4,13 +4,13 @@ import { test } from "@playwright/test";
  * 명세 69~80 의 핵심 QA 시나리오 (signup/create/share/join/check/expire/
  * extend/answer/delete). 이 흐름들은 로그인된 세션이 필요하므로 실행 전제 조건:
  *
- *  1) Supabase 테스트 프로젝트에 마이그레이션 + seed 적용
- *     (supabase db reset)
+ *  1) D1 테스트 DB 에 마이그레이션 + seed 적용
+ *     (npm run db:migrate:local && npm run db:seed:local)
  *  2) 두 개의 사전 로그인 세션(storageState) 준비:
  *     - tests/e2e/.auth/userA.json (기도제목 작성자)
  *     - tests/e2e/.auth/userB.json (함께 기도하는 사람)
- *     매직링크/서비스롤로 세션 토큰을 발급해 storageState 로 저장하는
- *     global-setup 을 붙인다.
+ *     세션 쿠키(pt_session)를 createSessionToken 으로 발급해 storageState 로
+ *     저장하는 global-setup 을 붙인다. (Google OAuth 는 목킹)
  *  3) E2E_BASE_URL 로 해당 환경을 가리킨다.
  *
  * 위 준비가 없는 CI/로컬에서는 skip 되며, 준비되면 test.skip 을 제거한다.
