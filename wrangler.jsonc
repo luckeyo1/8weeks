@@ -2,7 +2,7 @@
   // Cloudflare Workers 배포 설정 (OpenNext Cloudflare 어댑터)
   // https://opennext.js.org/cloudflare
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "prayer-together",
+  "name": "8weeks",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-03-25",
   // Next.js 서버 실행에 Node 호환 필요
@@ -20,7 +20,7 @@
     {
       "binding": "DB",
       "database_name": "prayer-together-db",
-      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+      "database_id": "40957668-395d-44eb-9842-ca58d10d8615",
       "migrations_dir": "migrations"
     }
   ]
