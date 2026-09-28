@@ -46,6 +46,6 @@ export async function requireProfile(returnTo?: string): Promise<MyProfile> {
     redirect(`/login${q}`);
   }
   const profile = await getMyProfile();
-  if (!profile) redirect("/onboarding");
+  if (!profile) redirect("/login");
   return profile;
 }

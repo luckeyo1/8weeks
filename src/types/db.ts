@@ -16,9 +16,12 @@ export type ParticipantStatus = "ACTIVE" | "LEFT" | "COMPLETED";
 export type PrayerUpdateType = "EXTENDED" | "CHANGED" | "ANSWERED" | "CLOSED";
 
 export type UserRow = {
-  id: string; // Google sub 기반 안정적 식별자
-  email: string | null;
-  nickname: string | null; // null 이면 온보딩 미완료
+  id: string; // 앱에서 생성하는 uuid
+  username: string | null; // 로그인 아이디 (중복불가)
+  password_hash: string | null; // PBKDF2 해시
+  church_name: string | null; // 교회명 (선택)
+  email: string | null; // 미사용(확장 여지)
+  nickname: string | null; // 이름(화면 표시)
   profile_image_url: string | null;
   created_at: string;
   updated_at: string;

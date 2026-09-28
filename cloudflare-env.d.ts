@@ -11,10 +11,6 @@ interface CloudflareEnv {
   /** 공개 값 (빌드 시 인라인되는 NEXT_PUBLIC_* 는 process.env 로도 접근) */
   NEXT_PUBLIC_SITE_URL?: string;
 
-  /** Google OAuth */
-  GOOGLE_CLIENT_ID?: string;
-  GOOGLE_CLIENT_SECRET?: string;
-
   /** 세션 쿠키 서명 비밀키 (HMAC) */
   SESSION_SECRET?: string;
 

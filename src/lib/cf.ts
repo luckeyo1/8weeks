@@ -25,7 +25,7 @@ export async function getDB(): Promise<D1Database> {
 
 /** 서버 전용 비밀키 조회 (없으면 명확한 에러) */
 export async function requireSecret(
-  key: "GOOGLE_CLIENT_ID" | "GOOGLE_CLIENT_SECRET" | "SESSION_SECRET",
+  key: "SESSION_SECRET",
 ): Promise<string> {
   const env = await getCfEnv();
   const value = env[key] ?? process.env[key];
