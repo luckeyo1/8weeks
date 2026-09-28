@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireProfile } from "@/features/auth/service";
+import { isAdmin } from "@/features/admin/guard";
 import { Avatar } from "@/components/ui/Avatar";
 import { SignOutButton } from "@/features/auth/SignOutButton";
 
@@ -12,6 +14,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
   const profile = await requireProfile();
+  const admin = await isAdmin();
 
   return (
     <div className="flex flex-col gap-6">
@@ -24,6 +27,16 @@ export default async function ProfilePage() {
           <p className="text-sm text-ink-soft">함께 기도해요</p>
         </div>
       </div>
+
+      {admin && (
+        <Link
+          href="/admin"
+          className="card flex items-center justify-between p-4 text-sm font-medium text-ink hover:border-primary/40"
+        >
+          <span>관리자 대시보드</span>
+          <span aria-hidden className="text-ink-soft">→</span>
+        </Link>
+      )}
 
       <div className="mt-2">
         <SignOutButton />

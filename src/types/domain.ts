@@ -81,6 +81,47 @@ export interface ParticipantPrayerDetail {
   latestUpdate: PrayerUpdateView | null;
 }
 
+/** ── 관리자 대시보드 ─────────────────────────────── */
+export interface AdminOverview {
+  totalUsers: number;
+  totalPrayers: number; // DELETED 제외
+  byStatus: { ACTIVE: number; EXPIRED: number; ANSWERED: number; CLOSED: number };
+  totalParticipations: number; // LEFT 제외
+  totalChecks: number;
+  checksToday: number;
+}
+
+export interface AdminUser {
+  id: string;
+  username: string | null;
+  nickname: string | null;
+  churchName: string | null;
+  createdAt: string;
+  ownedCount: number;
+  joinedCount: number;
+}
+
+export interface AdminPrayerParticipant {
+  nickname: string | null;
+  username: string | null;
+  checkedCount: number;
+}
+
+export interface AdminPrayer {
+  prayerId: string;
+  title: string;
+  description: string | null;
+  status: PrayerStatus;
+  ownerName: string | null;
+  ownerUsername: string | null;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  participantCount: number;
+  checkCount: number;
+  participants: AdminPrayerParticipant[];
+}
+
 /** shareToken join 미리보기 (명세 13/32) */
 export interface JoinPreview {
   shareToken: string;
