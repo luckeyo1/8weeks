@@ -23,6 +23,7 @@ export type UserRow = {
   email: string | null; // 미사용(확장 여지)
   nickname: string | null; // 이름(화면 표시)
   profile_image_url: string | null;
+  is_admin: number | null; // 1 이면 관리자
   created_at: string;
   updated_at: string;
 };

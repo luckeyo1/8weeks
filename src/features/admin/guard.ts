@@ -5,32 +5,30 @@ import { getAuthUser } from "@/features/auth/service";
 import { getCfEnv } from "@/lib/cf";
 import { dbFirst } from "@/lib/db";
 
-/** 현재 로그인 사용자의 아이디 */
-export async function getCurrentUsername(): Promise<string | null> {
+/**
+ * 관리자 판별.
+ * 1순위: users.is_admin = 1 (DB 플래그, 콘솔에서 켬)
+ * 2순위: ADMIN_USERNAMES 환경변수 allowlist (콤마 구분)
+ */
+export async function isAdmin(): Promise<boolean> {
   const uid = await getAuthUser();
-  if (!uid) return null;
-  const row = await dbFirst<{ username: string | null }>(
-    "select username from users where id = ?",
+  if (!uid) return false;
+
+  const row = await dbFirst<{ username: string | null; is_admin: number | null }>(
+    "select username, is_admin from users where id = ?",
     [uid],
   );
-  return row?.username ?? null;
-}
+  if (!row) return false;
+  if (row.is_admin === 1) return true;
 
-function adminList(env: CloudflareEnv): string[] {
+  // 보조: 환경변수 allowlist
+  const env = await getCfEnv();
   const raw = env.ADMIN_USERNAMES ?? process.env.ADMIN_USERNAMES ?? "";
-  return raw
+  const list = raw
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
-}
-
-/** 현재 사용자가 관리자면 true */
-export async function isAdmin(): Promise<boolean> {
-  const env = await getCfEnv();
-  const list = adminList(env);
-  if (list.length === 0) return false;
-  const username = await getCurrentUsername();
-  return !!username && list.includes(username.toLowerCase());
+  return !!row.username && list.includes(row.username.toLowerCase());
 }
 
 /** 관리자가 아니면 404 (존재 자체를 숨김) */

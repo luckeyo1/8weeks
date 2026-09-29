@@ -10,6 +10,7 @@ create table if not exists users (
   email             text,
   nickname          text,
   profile_image_url text,
+  is_admin          integer not null default 0,
   created_at        text not null default (datetime('now')),
   updated_at        text not null default (datetime('now'))
 );
