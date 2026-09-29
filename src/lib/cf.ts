@@ -4,7 +4,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 /**
  * Cloudflare 실행 컨텍스트 접근.
- * D1 바인딩(DB)과 비밀키(GOOGLE_*, SESSION_SECRET)는 Workers 환경에서
+ * D1 바인딩(DB)과 비밀키(SESSION_SECRET 등)는 Workers 환경에서
  * process.env 가 아니라 이 env 바인딩으로 들어온다.
  * (`next dev` 에서는 initOpenNextCloudflareForDev + .dev.vars 로 채워짐)
  */

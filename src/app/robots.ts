@@ -10,7 +10,16 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/join/", "/prayers/", "/profile", "/home", "/my-prayers", "/login", "/signup"],
+      disallow: [
+        "/join/",
+        "/prayers/",
+        "/profile",
+        "/home",
+        "/my-prayers",
+        "/login",
+        "/signup",
+        "/admin",
+      ],
     },
     sitemap: `${publicEnv.siteUrl}/sitemap.xml`,
   };

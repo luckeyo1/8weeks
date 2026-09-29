@@ -37,7 +37,7 @@ export async function getMyProfile(): Promise<MyProfile | null> {
 
 /**
  * 인증 + 온보딩 완료 보장.
- * 미로그인 → /login, 로그인했으나 닉네임 없음 → /onboarding
+ * 미로그인 또는 프로필 없음 → /login
  */
 export async function requireProfile(returnTo?: string): Promise<MyProfile> {
   const uid = await getAuthUser();

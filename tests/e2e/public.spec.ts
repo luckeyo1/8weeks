@@ -13,20 +13,24 @@ test("랜딩 페이지가 히어로와 CTA를 보여준다 (명세 61)", async (
   await expect(page.getByRole("link", { name: "시작하기" })).toBeVisible();
 });
 
-test("시작하기 → 로그인 화면 (아이디/비밀번호)", async ({ page }) => {
+test("시작하기 → 가입 화면 (아이디/비밀번호)", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "시작하기" }).click();
-  await expect(page).toHaveURL(/\/login/);
+  await expect(page).toHaveURL(/\/signup/);
+  await expect(page.getByLabel("아이디")).toBeVisible();
+  await expect(page.getByLabel("비밀번호")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "가입하고 시작하기" }),
+  ).toBeVisible();
+});
+
+test("로그인 화면 → 가입 화면 이동", async ({ page }) => {
+  await page.goto("/login");
   await expect(page.getByLabel("아이디")).toBeVisible();
   await expect(page.getByLabel("비밀번호")).toBeVisible();
   await expect(page.getByRole("button", { name: "로그인" })).toBeVisible();
-});
-
-test("로그인 → 가입 화면 이동", async ({ page }) => {
-  await page.goto("/login");
   await page.getByRole("link", { name: "가입하기" }).click();
   await expect(page).toHaveURL(/\/signup/);
-  await expect(page.getByRole("button", { name: "가입하고 시작하기" })).toBeVisible();
 });
 
 test("잘못된 초대 토큰은 서비스 스타일 안내를 보여준다 (명세 79)", async ({
