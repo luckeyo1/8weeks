@@ -135,6 +135,49 @@ export async function getTodaysPrayers(
   return all.filter((p) => p.status === "ACTIVE");
 }
 
+/**
+ * 내가 만든 "진행 중" 기도제목 체크리스트 (작성자 본인용).
+ * 작성자도 자기 기도제목을 매일 기도하고 체크할 수 있다.
+ */
+export async function getOwnActiveChecklist(
+  userId: string,
+): Promise<ParticipatingPrayer[]> {
+  const today = appTodayISO();
+  await touchExpired(today);
+
+  const prayers = await dbAll<PrayerRow>(
+    "select * from prayers where owner_id = ? and status = 'ACTIVE' order by end_date asc",
+    [userId],
+  );
+  if (prayers.length === 0) return [];
+
+  const ids = prayers.map((p) => p.id);
+  const checks = await dbAll<{ prayer_id: string }>(
+    `select prayer_id from prayer_checks where user_id = ? and check_date = ? and prayer_id in (${placeholders(ids.length)})`,
+    [userId, today, ...ids],
+  );
+  const checkedSet = new Set(checks.map((c) => c.prayer_id));
+
+  const profiles = await fetchProfiles([userId]);
+  const me = ownerProfile(profiles.get(userId));
+
+  return prayers
+    .map((p): ParticipatingPrayer => ({
+      prayerId: p.id,
+      owner: me,
+      title: p.title,
+      description: p.description,
+      startDate: p.start_date,
+      endDate: p.end_date,
+      status: computeEffectiveStatus(p.status, p.end_date, today),
+      daysLeft: daysLeft(p.end_date, today),
+      checkedToday: checkedSet.has(p.id),
+      participantId: "",
+      participantStatus: "ACTIVE",
+    }))
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+}
+
 /** 내가 작성한 기도제목 목록 */
 export async function getOwnedPrayers(
   userId: string,

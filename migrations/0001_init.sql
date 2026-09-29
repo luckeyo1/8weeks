@@ -54,7 +54,7 @@ create index if not exists participants_user_idx on prayer_participants(user_id)
 create table if not exists prayer_checks (
   id             text primary key,
   prayer_id      text not null references prayers(id),
-  participant_id text not null references prayer_participants(id),
+  participant_id text references prayer_participants(id), -- 작성자 본인 체크는 NULL
   user_id        text not null references users(id),
   check_date     text not null,   -- YYYY-MM-DD
   created_at     text not null default (datetime('now')),

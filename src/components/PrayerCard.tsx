@@ -11,8 +11,14 @@ import { track } from "@/lib/analytics";
 import { checkPrayer } from "@/features/check/actions";
 import type { ParticipatingPrayer } from "@/types/domain";
 
-/** 홈 "오늘의 기도" 카드 (명세 7/52/53) */
-export function PrayerCard({ prayer }: { prayer: ParticipatingPrayer }) {
+/** 홈 "오늘의 기도" 카드 (명세 7/52/53). own=true 면 내가 만든 기도. */
+export function PrayerCard({
+  prayer,
+  own = false,
+}: {
+  prayer: ParticipatingPrayer;
+  own?: boolean;
+}) {
   const toast = useToast();
   const [checked, setChecked] = useState(prayer.checkedToday);
   const [pending, startTransition] = useTransition();
@@ -41,15 +47,24 @@ export function PrayerCard({ prayer }: { prayer: ParticipatingPrayer }) {
       )}
     >
       <div className="flex items-center gap-3">
-        <Avatar
-          name={prayer.owner.nickname}
-          src={prayer.owner.profileImageUrl}
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-ink">
-            {prayer.owner.nickname}
-          </p>
-        </div>
+        {own ? (
+          <span className="inline-flex items-center rounded-pill bg-primary-soft px-2.5 py-1 text-xs font-medium text-primary">
+            내 기도제목
+          </span>
+        ) : (
+          <>
+            <Avatar
+              name={prayer.owner.nickname}
+              src={prayer.owner.profileImageUrl}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold text-ink">
+                {prayer.owner.nickname}
+              </p>
+            </div>
+          </>
+        )}
+        {own && <div className="flex-1" />}
         <DDayBadge label={dday} />
       </div>
 

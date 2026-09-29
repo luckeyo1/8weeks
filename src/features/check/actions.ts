@@ -19,17 +19,21 @@ export async function checkPrayer(
     const uid = await getAuthUser();
     if (!uid) throw new AppError("UNAUTHENTICATED");
 
+    const prayer = await dbFirst<{
+      owner_id: string;
+      status: string;
+      end_date: string;
+    }>("select owner_id, status, end_date from prayers where id = ?", [prayerId]);
+    if (!prayer || prayer.status === "DELETED") throw new AppError("NOT_FOUND");
+
+    // 작성자 본인 또는 (LEFT 아닌) 참여자만 체크 가능
     const part = await dbFirst<{ id: string; status: string }>(
       "select id, status from prayer_participants where prayer_id = ? and user_id = ?",
       [prayerId, uid],
     );
-    if (!part || part.status === "LEFT") throw new AppError("FORBIDDEN");
-
-    const prayer = await dbFirst<{ status: string; end_date: string }>(
-      "select status, end_date from prayers where id = ?",
-      [prayerId],
-    );
-    if (!prayer || prayer.status === "DELETED") throw new AppError("NOT_FOUND");
+    const isOwner = prayer.owner_id === uid;
+    const isParticipant = part && part.status !== "LEFT";
+    if (!isOwner && !isParticipant) throw new AppError("FORBIDDEN");
 
     const today = appTodayISO();
     const effective = computeEffectiveStatus(
@@ -42,7 +46,7 @@ export async function checkPrayer(
     try {
       await dbRun(
         "insert into prayer_checks (id, prayer_id, participant_id, user_id, check_date) values (?, ?, ?, ?, ?)",
-        [newId(), prayerId, part.id, uid, today],
+        [newId(), prayerId, isParticipant ? part!.id : null, uid, today],
       );
     } catch (e) {
       // 동일 날짜 중복 → 멱등 처리
