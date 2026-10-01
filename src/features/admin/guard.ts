@@ -14,21 +14,27 @@ export async function isAdmin(): Promise<boolean> {
   const uid = await getAuthUser();
   if (!uid) return false;
 
-  const row = await dbFirst<{ username: string | null; is_admin: number | null }>(
-    "select username, is_admin from users where id = ?",
-    [uid],
-  );
-  if (!row) return false;
-  if (row.is_admin === 1) return true;
+  try {
+    const row = await dbFirst<{
+      username: string | null;
+      is_admin: number | null;
+    }>("select username, is_admin from users where id = ?", [uid]);
+    if (!row) return false;
+    if (row.is_admin === 1) return true;
 
-  // 보조: 환경변수 allowlist
-  const env = await getCfEnv();
-  const raw = env.ADMIN_USERNAMES ?? process.env.ADMIN_USERNAMES ?? "";
-  const list = raw
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-  return !!row.username && list.includes(row.username.toLowerCase());
+    // 보조: 환경변수 allowlist
+    const env = await getCfEnv();
+    const raw = env.ADMIN_USERNAMES ?? process.env.ADMIN_USERNAMES ?? "";
+    const list = raw
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    return !!row.username && list.includes(row.username.toLowerCase());
+  } catch {
+    // is_admin 컬럼 미적용 등 조회 실패 → 관리자 아님으로 처리
+    // (프로필 등 다른 화면이 깨지지 않도록 방어)
+    return false;
+  }
 }
 
 /** 관리자가 아니면 404 (존재 자체를 숨김) */
