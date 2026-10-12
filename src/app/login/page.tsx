@@ -16,7 +16,10 @@ export default async function LoginPage() {
   if (user) redirect("/home");
 
   return (
-    <main className="app-shell">
+    <main
+      className="app-shell bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url(/bg-pattern.png)" }}
+    >
       <div className="flex flex-1 flex-col justify-center px-6 py-12">
         <Link href="/" className="mb-10 text-sm text-ink-soft">
           ← 처음으로
