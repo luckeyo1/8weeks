@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "함께 기도해주세요",
     description: "누군가 당신에게 기도를 부탁했습니다.",
+    images: [{ url: "/og.png", width: 1200, height: 630 }],
   },
 };
 

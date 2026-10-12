@@ -56,7 +56,7 @@ export default async function HomePage() {
 
       {nothing ? (
         <EmptyState
-          image="/illust/remember.png"
+          image="/illust/empty.png"
           title="아직 함께 기도할 제목이 없어요."
           description="기도제목을 만들거나, 누군가의 초대를 받아보세요."
           action={

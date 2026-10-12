@@ -70,6 +70,7 @@ export function MyPrayersTabs({
       {tab === "mine" ? (
         ownedFiltered.length === 0 ? (
           <EmptyState
+            image="/illust/empty.png"
             title="아직 나눈 기도제목이 없어요."
             description="마음에 품고 있는 기도를 누군가와 나눠보세요."
             action={
@@ -104,6 +105,7 @@ export function MyPrayersTabs({
         )
       ) : withFiltered.length === 0 ? (
         <EmptyState
+          image="/illust/empty.png"
           title="함께 기도하는 기도제목이 없어요."
           description="공유받은 링크나 QR로 함께 기도해보세요."
         />

@@ -13,6 +13,18 @@ export const metadata: Metadata = {
   description: "한 번 나눈 기도제목을 다음 만남까지 함께 품어요.",
   applicationName: "기도 동행",
   manifest: "/manifest.webmanifest",
+  openGraph: {
+    title: "기도 동행",
+    description: "한 번 나눈 기도제목을 다음 만남까지 함께 품어요.",
+    images: [{ url: "/og.png", width: 1200, height: 630 }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "기도 동행",
+    description: "한 번 나눈 기도제목을 다음 만남까지 함께 품어요.",
+    images: ["/og.png"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
