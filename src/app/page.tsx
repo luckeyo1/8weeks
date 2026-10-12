@@ -6,17 +6,17 @@ import { Button } from "@/components/ui/Button";
 /** 서비스 소개 랜딩 (색인 허용). */
 const STEPS = [
   {
-    n: "1",
+    img: "/illust/share.png",
     title: "기도제목을 나눠요",
     body: "함께 기도했으면 하는 마음을 적고, QR이나 링크로 특정한 사람에게만 전해요.",
   },
   {
-    n: "2",
+    img: "/illust/remember.png",
     title: "매일 함께 기억해요",
     body: "오늘 함께 기도할 사람을 확인하고, 기도한 뒤 가볍게 체크해요.",
   },
   {
-    n: "3",
+    img: "/illust/continue.png",
     title: "다음 만남을 이어가요",
     body: "기간이 끝나면 변화와 응답을 나누고, 다시 만났을 때 그 이후를 물어봐요.",
   },
@@ -83,10 +83,14 @@ export default async function LandingPage() {
           <h2 className="text-lg font-bold text-ink">이렇게 함께해요</h2>
           <ol className="flex flex-col gap-3">
             {STEPS.map((s) => (
-              <li key={s.n} className="card flex gap-3 p-4">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
-                  {s.n}
-                </span>
+              <li key={s.img} className="card flex items-center gap-4 p-4">
+                <Image
+                  src={s.img}
+                  alt=""
+                  width={72}
+                  height={72}
+                  className="h-16 w-16 shrink-0 object-contain"
+                />
                 <div>
                   <p className="font-semibold text-ink">{s.title}</p>
                   <p className="mt-1 text-sm leading-relaxed text-ink-soft">
