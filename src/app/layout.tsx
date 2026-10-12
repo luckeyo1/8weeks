@@ -20,8 +20,11 @@ export const metadata: Metadata = {
   },
   // 기본은 색인 허용(랜딩). 개별 페이지(join/상세/profile)에서 noindex 지정 (명세 82~84)
   icons: {
-    icon: "/icons/icon.svg",
-    apple: "/icons/icon.svg",
+    icon: [
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
   },
 };
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getAuthUser } from "@/features/auth/service";
 import { Button } from "@/components/ui/Button";
 
@@ -65,23 +66,16 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        {/* 데모 mockup */}
-        <section aria-hidden className="my-12 flex items-end justify-center gap-3">
-          {["기도제목 공유", "오늘의 기도", "기도 응답"].map((label, i) => (
-            <div key={label} className="flex flex-col items-center gap-2">
-              <div
-                className="flex h-40 w-24 flex-col gap-2 rounded-2xl border border-line bg-surface p-2 shadow-card"
-                style={{ transform: i === 1 ? "translateY(-10px)" : undefined }}
-              >
-                <div className="h-2 w-2/3 rounded-full bg-line" />
-                <div className="h-8 rounded-lg bg-primary-soft" />
-                <div className="h-2 w-full rounded-full bg-line" />
-                <div className="h-2 w-4/5 rounded-full bg-line" />
-                <div className="mt-auto h-6 rounded-lg bg-primary/80" />
-              </div>
-              <span className="text-[11px] text-ink-soft">{label}</span>
-            </div>
-          ))}
+        {/* 히어로 일러스트 */}
+        <section aria-hidden className="my-8">
+          <Image
+            src="/hero.png"
+            alt=""
+            width={1000}
+            height={563}
+            priority
+            className="h-auto w-full"
+          />
         </section>
 
         {/* 작동 방식 */}

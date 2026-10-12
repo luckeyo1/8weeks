@@ -13,11 +13,9 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   images: {
-    remotePatterns: [
-      // Supabase Storage / Google profile images
-      { protocol: "https", hostname: "*.supabase.co" },
-      { protocol: "https", hostname: "lh3.googleusercontent.com" },
-    ],
+    // Cloudflare Workers 런타임에서 이미지 최적화기 의존을 피하려 원본 서빙.
+    // (아이콘/히어로는 사전 리사이즈 완료, 아바타는 소형)
+    unoptimized: true,
   },
 };
 
