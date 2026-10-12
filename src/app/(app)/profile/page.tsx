@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireProfile } from "@/features/auth/service";
 import { isAdmin } from "@/features/admin/guard";
 import { Avatar } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
 import { SignOutButton } from "@/features/auth/SignOutButton";
 
 export const metadata: Metadata = {
@@ -29,13 +30,33 @@ export default async function ProfilePage() {
       </div>
 
       {admin && (
-        <Link
-          href="/admin"
-          className="card flex items-center justify-between p-4 text-sm font-medium text-ink hover:border-primary/40"
-        >
-          <span>관리자 대시보드</span>
-          <span aria-hidden className="text-ink-soft">→</span>
-        </Link>
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-ink-soft">관리자 메뉴</p>
+          <Link href="/admin">
+            <Button variant="secondary" size="lg" fullWidth>
+              <span className="flex w-full items-center justify-between">
+                <span className="inline-flex items-center gap-2">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden
+                  >
+                    <path
+                      d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  관리자 대시보드
+                </span>
+                <span aria-hidden>→</span>
+              </span>
+            </Button>
+          </Link>
+        </div>
       )}
 
       <div className="mt-2">
