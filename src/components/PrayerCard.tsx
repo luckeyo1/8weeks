@@ -68,14 +68,18 @@ export function PrayerCard({
         <DDayBadge label={dday} />
       </div>
 
-      <div className="flex flex-col gap-1">
+      <Link
+        href={`/prayers/${prayer.prayerId}`}
+        className="flex flex-col gap-1 rounded-lg -mx-1 px-1 py-0.5 hover:bg-line/30"
+        aria-label={`${prayer.title} 자세히 보기`}
+      >
         <p className="font-medium leading-snug text-ink">{prayer.title}</p>
         {prayer.description && (
           <p className="line-clamp-3 text-sm leading-relaxed text-ink-soft">
             {prayer.description}
           </p>
         )}
-      </div>
+      </Link>
 
       <button
         type="button"
@@ -105,13 +109,6 @@ export function PrayerCard({
           <>🙏 오늘 함께 기도했어요</>
         )}
       </button>
-
-      <Link
-        href={`/prayers/${prayer.prayerId}`}
-        className="text-center text-xs text-ink-soft/70 hover:text-ink-soft"
-      >
-        자세히 보기
-      </Link>
     </article>
   );
 }

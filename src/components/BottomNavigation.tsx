@@ -35,7 +35,10 @@ const ITEMS: NavItem[] = [
   {
     href: "/my-prayers",
     label: "나의 기도",
-    match: (p) => p.startsWith("/my-prayers") || p.startsWith("/prayers/"),
+    // /prayers/new 는 "기도 만들기" 가 담당하므로 제외
+    match: (p) =>
+      p.startsWith("/my-prayers") ||
+      (p.startsWith("/prayers/") && p !== "/prayers/new"),
     icon: <Icon path="M4 5h16M4 12h16M4 19h10" />,
   },
   {

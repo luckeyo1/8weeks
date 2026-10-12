@@ -29,6 +29,24 @@ export default async function ProfilePage() {
         </div>
       </div>
 
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-medium text-ink-soft">메뉴</p>
+        <Link
+          href="/"
+          className="card flex items-center justify-between p-4 text-sm font-medium text-ink hover:border-primary/40"
+        >
+          <span>서비스 소개</span>
+          <span aria-hidden className="text-ink-soft">→</span>
+        </Link>
+        <Link
+          href="/prayers/new"
+          className="card flex items-center justify-between p-4 text-sm font-medium text-ink hover:border-primary/40"
+        >
+          <span>기도제목 만들기</span>
+          <span aria-hidden className="text-ink-soft">→</span>
+        </Link>
+      </div>
+
       {admin && (
         <div className="flex flex-col gap-2">
           <p className="text-xs font-medium text-ink-soft">관리자 메뉴</p>
