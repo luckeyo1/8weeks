@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { useToast } from "@/components/ui/Toast";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { signIn } from "./actions";
 
 function safeReturn(url: string | null): string {
@@ -16,7 +16,6 @@ function safeReturn(url: string | null): string {
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const toast = useToast();
   const returnUrl = safeReturn(params.get("returnUrl"));
 
   const [username, setUsername] = useState("");
@@ -50,9 +49,8 @@ export function LoginForm() {
         onChange={(e) => setUsername(e.target.value)}
         required
       />
-      <Input
+      <PasswordInput
         label="비밀번호"
-        type="password"
         autoComplete="current-password"
         placeholder="비밀번호"
         value={password}

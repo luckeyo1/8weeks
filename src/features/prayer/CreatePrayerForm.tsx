@@ -150,9 +150,13 @@ export function CreatePrayerForm() {
       </div>
 
       {/* Privacy 안내 (명세 54) */}
-      <p className="text-xs leading-relaxed text-ink-soft">
-        기도제목은 링크를 받은 사람에게만 보여요.
-      </p>
+      <div className="flex flex-col gap-1 text-xs leading-relaxed text-ink-soft">
+        <p>기도제목은 링크 또는 QR을 받은 사람에게 보여요.</p>
+        <p>
+          다른 사람의 건강·가정사처럼 민감한 내용은 당사자의 동의를 구하고
+          신중히 적어주세요.
+        </p>
+      </div>
 
       <Button type="submit" size="lg" fullWidth loading={pending}>
         기도제목 만들기

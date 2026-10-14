@@ -15,7 +15,7 @@ const config: Config = {
         surface: "#FFFFFF",
         ink: {
           DEFAULT: "#222222", // 텍스트
-          soft: "#777777", // secondary text
+          soft: "#636861", // secondary text (대비 상향: 오프화이트 위 ~5.6:1)
         },
         line: "#ECEBE6", // 아주 옅은 구분선
         primary: {

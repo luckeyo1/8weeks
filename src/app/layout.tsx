@@ -44,7 +44,7 @@ export const viewport: Viewport = {
   themeColor: "#FAFAF8",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // 사용자 확대 허용 (접근성). maximumScale 를 두지 않는다.
   viewportFit: "cover",
 };
 

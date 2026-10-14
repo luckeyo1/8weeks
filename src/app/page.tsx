@@ -34,7 +34,19 @@ export default async function LandingPage() {
 
   return (
     <main className="app-shell">
-      <div className="flex flex-1 flex-col px-6 pb-20 pt-16">
+      <div className="flex flex-1 flex-col px-6 pb-20 pt-10">
+        {/* 브랜드 */}
+        <div className="mb-8 flex items-center gap-2">
+          <Image
+            src="/icons/icon-192.png"
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8 rounded-lg"
+          />
+          <span className="text-lg font-bold text-ink">기도 동행</span>
+        </div>
+
         {/* Hero */}
         <section className="flex flex-col gap-4">
           <span className="inline-flex w-fit items-center rounded-pill bg-primary-soft px-3 py-1 text-xs font-medium text-primary">
