@@ -16,19 +16,34 @@ import {
   extendPrayer,
   recordAnswer,
   recordChange,
+  removeParticipant,
+  reissueShareLink,
+  revokeShareLink,
 } from "./actions";
 import { UpdateList } from "./UpdateList";
 import { formatDDay, formatKoreanRange, appTodayISO } from "@/lib/date";
 import type { OwnerPrayerDetail } from "@/types/domain";
 import type { ActionResult } from "@/lib/errors";
 
-type Sheet = null | "extend" | "change" | "answer" | "close" | "delete" | "end";
+type Sheet =
+  | null
+  | "extend"
+  | "change"
+  | "answer"
+  | "close"
+  | "delete"
+  | "end"
+  | "revoke"
+  | "reissue";
 
 export function OwnerPrayerView({ detail }: { detail: OwnerPrayerDetail }) {
   const router = useRouter();
   const toast = useToast();
   const [qrOpen, setQrOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
+  const [removeTarget, setRemoveTarget] = useState<OwnerPrayerDetail["participants"][number] | null>(
+    null,
+  );
   const [pending, startTransition] = useTransition();
 
   // sheet 입력 상태
@@ -97,14 +112,69 @@ export function OwnerPrayerView({ detail }: { detail: OwnerPrayerDetail }) {
       </section>
 
       {/* 공유 (진행 중/종료 대기 시) */}
-      {(isActive || isExpired) && (
-        <section className="flex gap-2">
-          <Button className="flex-1" onClick={() => setQrOpen(true)}>
-            QR로 공유하기
-          </Button>
-          <Button variant="secondary" className="flex-1" onClick={copyLink}>
-            링크 복사
-          </Button>
+      {(isActive || isExpired) &&
+        (detail.shareRevoked ? (
+          <section className="card flex flex-col gap-3 p-5">
+            <p className="text-[15px] font-medium text-ink">초대 링크가 잠겨 있어요</p>
+            <p className="text-sm leading-relaxed text-ink-soft">
+              지금은 새로운 분이 이 링크로 함께 기도할 수 없어요. 이미 함께 기도 중인
+              분들은 그대로 이어가요. 다시 초대하고 싶으면 새 링크를 만들어요.
+            </p>
+            <Button variant="secondary" onClick={() => setSheet("reissue")}>
+              새 초대 링크 만들기
+            </Button>
+          </section>
+        ) : (
+          <section className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={() => setQrOpen(true)}>
+                QR로 공유하기
+              </Button>
+              <Button variant="secondary" className="flex-1" onClick={copyLink}>
+                링크 복사
+              </Button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSheet("revoke")}
+              className="self-center px-2 py-1 text-[13px] text-ink-soft underline-offset-2 transition-colors hover:text-ink hover:underline"
+            >
+              초대 링크 잠그기
+            </button>
+          </section>
+        ))}
+
+      {/* 동행자 명단 + 접근 해제 (작성자 운영용) */}
+      {detail.participants.length > 0 && (
+        <section className="card flex flex-col gap-3 p-5">
+          <h2 className="text-[15px] font-semibold text-ink">
+            함께 기도하는 사람
+          </h2>
+          <ul className="flex flex-col divide-y divide-line">
+            {detail.participants.map((p) => (
+              <li
+                key={p.participantId}
+                className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+              >
+                <span className="truncate text-[15px] text-ink">
+                  {p.nickname ?? "이름 없음"}
+                </span>
+                {(isActive || isExpired) && (
+                  <button
+                    type="button"
+                    onClick={() => setRemoveTarget(p)}
+                    className="shrink-0 px-2 py-1 text-[13px] text-ink-soft underline-offset-2 transition-colors hover:text-ink hover:underline"
+                  >
+                    접근 해제
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="text-[13px] leading-relaxed text-ink-soft/80">
+            접근을 해제하면 그분은 더 이상 이 기도를 볼 수 없어요. 함께한 기록은
+            남아 있어요.
+          </p>
         </section>
       )}
 
@@ -299,6 +369,72 @@ export function OwnerPrayerView({ detail }: { detail: OwnerPrayerDetail }) {
             () => {},
           )
         }
+      />
+
+      {/* 초대 링크 잠그기 */}
+      <ConfirmSheet
+        open={sheet === "revoke"}
+        onClose={() => setSheet(null)}
+        title="초대 링크를 잠글까요?"
+        description="지금 공유된 링크로는 더 이상 새로운 분이 함께 기도할 수 없어요. 이미 함께하는 분들은 그대로예요."
+        confirmLabel="링크 잠그기"
+        pending={pending}
+        onConfirm={() =>
+          run(
+            () => revokeShareLink(detail.prayerId),
+            () => toast.show("초대 링크를 잠갔어요."),
+          )
+        }
+      />
+
+      {/* 새 초대 링크 만들기 */}
+      <ConfirmSheet
+        open={sheet === "reissue"}
+        onClose={() => setSheet(null)}
+        title="새 초대 링크를 만들까요?"
+        description="예전에 공유했던 링크는 더 이상 열리지 않아요. 새 링크를 다시 공유해주세요."
+        confirmLabel="새 링크 만들기"
+        pending={pending}
+        onConfirm={() =>
+          run(
+            async () => {
+              const res = await reissueShareLink(detail.prayerId);
+              return res.ok ? { ok: true as const, data: undefined } : res;
+            },
+            () => toast.show("새 초대 링크를 만들었어요."),
+          )
+        }
+      />
+
+      {/* 동행자 접근 해제 */}
+      <ConfirmSheet
+        open={removeTarget !== null}
+        onClose={() => setRemoveTarget(null)}
+        title={
+          removeTarget
+            ? `${removeTarget.nickname ?? "이 동행자"}님의 접근을 해제할까요?`
+            : "접근을 해제할까요?"
+        }
+        description="그분은 더 이상 이 기도를 볼 수 없어요. 함께한 기록은 남아 있어요."
+        confirmLabel="접근 해제"
+        pending={pending}
+        onConfirm={() => {
+          const target = removeTarget;
+          if (!target) return;
+          startTransition(async () => {
+            const res = await removeParticipant({
+              prayerId: detail.prayerId,
+              participantId: target.participantId,
+            });
+            if (res.ok) {
+              setRemoveTarget(null);
+              toast.show("접근을 해제했어요.");
+              router.refresh();
+            } else {
+              toast.show(res.message, "error");
+            }
+          });
+        }}
       />
 
       {/* 삭제 확인 (명세 33) */}

@@ -110,3 +110,44 @@ export async function signOut(): Promise<void> {
   const store = await cookies();
   store.delete(SESSION_COOKIE);
 }
+
+/**
+ * 회원 탈퇴 (P0 개인정보). 내가 만든 기도·함께한 기록을 모두 지우고 계정을 삭제한다.
+ * 자식 행을 먼저 지워 참조 무결성을 지킨다(soft-delete 아님 — 완전 삭제).
+ */
+export async function deleteAccount(): Promise<ActionResult> {
+  try {
+    const store = await cookies();
+    const token = store.get(SESSION_COOKIE)?.value;
+    if (!token) throw new AppError("UNAUTHENTICATED");
+    const { verifySessionToken } = await import("@/lib/auth/session");
+    const uid = await verifySessionToken(token, await sessionSecret());
+    if (!uid) throw new AppError("UNAUTHENTICATED");
+
+    // 1) 내가 만든 기도제목에 달린 자식 행 정리
+    await dbRun(
+      "delete from prayer_checks where prayer_id in (select id from prayers where owner_id = ?)",
+      [uid],
+    );
+    await dbRun(
+      "delete from prayer_participants where prayer_id in (select id from prayers where owner_id = ?)",
+      [uid],
+    );
+    await dbRun(
+      "delete from prayer_updates where prayer_id in (select id from prayers where owner_id = ?)",
+      [uid],
+    );
+    // 2) 내가 함께 기도한 다른 사람 기도의 기록 정리
+    await dbRun("delete from prayer_checks where user_id = ?", [uid]);
+    await dbRun("delete from prayer_participants where user_id = ?", [uid]);
+    // 3) 내 기도제목, 세션, 계정 삭제
+    await dbRun("delete from prayers where owner_id = ?", [uid]);
+    await dbRun("delete from sessions where user_id = ?", [uid]);
+    await dbRun("delete from users where id = ?", [uid]);
+
+    store.delete(SESSION_COOKIE);
+    return ok(undefined);
+  } catch (e) {
+    return toActionError(e);
+  }
+}

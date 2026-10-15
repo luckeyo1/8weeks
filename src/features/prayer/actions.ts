@@ -240,3 +240,86 @@ export async function deletePrayer(prayerId: string): Promise<ActionResult> {
     return toActionError(e);
   }
 }
+
+/**
+ * 초대 링크 잠그기 (P0 접근권한). 기존 링크로 신규 수락을 차단한다.
+ * 이미 함께 기도 중인 동행자에게는 영향 없음.
+ */
+export async function revokeShareLink(prayerId: string): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    await loadOwnedPrayer(prayerId, userId);
+    await dbRun(
+      "update prayers set share_revoked = 1, updated_at = datetime('now') where id = ?",
+      [prayerId],
+    );
+    revalidatePath(`/prayers/${prayerId}`);
+    return ok(undefined);
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+/**
+ * 초대 링크 새로 만들기 (P0 접근권한). 새 토큰을 발급하고 잠금을 해제한다.
+ * 기존에 공유했던 링크는 더 이상 열리지 않는다.
+ */
+export async function reissueShareLink(
+  prayerId: string,
+): Promise<ActionResult<{ shareToken: string }>> {
+  try {
+    const userId = await requireUserId();
+    await loadOwnedPrayer(prayerId, userId);
+
+    let token = "";
+    let updated = false;
+    for (let attempt = 0; attempt < 3 && !updated; attempt += 1) {
+      token = generateShareToken();
+      try {
+        await dbRun(
+          "update prayers set share_token = ?, share_revoked = 0, updated_at = datetime('now') where id = ?",
+          [token, prayerId],
+        );
+        updated = true;
+      } catch (e) {
+        if (!isUniqueViolation(e)) throw e;
+      }
+    }
+    if (!updated) throw new AppError("UNKNOWN");
+
+    revalidatePath(`/prayers/${prayerId}`);
+    return ok({ shareToken: token });
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+/**
+ * 동행자 접근 해제 (P0 접근권한). 특정 동행자의 접근을 끊는다.
+ * 지난 기록(prayer_checks)은 유지하고, 재참여는 차단한다(removed=1).
+ */
+export async function removeParticipant(input: {
+  prayerId: string;
+  participantId: string;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    await loadOwnedPrayer(input.prayerId, userId);
+
+    const part = await dbFirst<{ id: string }>(
+      "select id from prayer_participants where id = ? and prayer_id = ?",
+      [input.participantId, input.prayerId],
+    );
+    if (!part) throw new AppError("NOT_FOUND");
+
+    await dbRun(
+      "update prayer_participants set status = 'LEFT', removed = 1, left_at = datetime('now') where id = ?",
+      [part.id],
+    );
+
+    revalidatePath(`/prayers/${input.prayerId}`);
+    return ok(undefined);
+  } catch (e) {
+    return toActionError(e);
+  }
+}

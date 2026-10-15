@@ -62,3 +62,33 @@ export async function checkPrayer(
     return toActionError(e);
   }
 }
+
+/**
+ * 오늘 체크 되돌리기 (P1 — 실수로 눌렀을 때).
+ * 오늘 날짜의 내 체크 기록만 삭제한다. 이전 날짜 기록은 건드리지 않는다.
+ */
+export async function uncheckPrayer(
+  prayerId: string,
+): Promise<ActionResult<{ checkedToday: false }>> {
+  try {
+    const uid = await getAuthUser();
+    if (!uid) throw new AppError("UNAUTHENTICATED");
+
+    const prayer = await dbFirst<{ status: string }>(
+      "select status from prayers where id = ?",
+      [prayerId],
+    );
+    if (!prayer || prayer.status === "DELETED") throw new AppError("NOT_FOUND");
+
+    const today = appTodayISO();
+    await dbRun(
+      "delete from prayer_checks where prayer_id = ? and user_id = ? and check_date = ?",
+      [prayerId, uid, today],
+    );
+
+    revalidatePath("/home");
+    return ok({ checkedToday: false });
+  } catch (e) {
+    return toActionError(e);
+  }
+}

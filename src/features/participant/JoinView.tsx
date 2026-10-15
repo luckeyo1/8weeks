@@ -64,17 +64,32 @@ export function JoinView({
       </div>
 
       <div className="card mt-8 flex flex-col gap-3 p-5">
-        <h1 className="text-lg font-bold leading-snug text-ink">
-          {preview.title}
-        </h1>
-        {preview.description && (
-          <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink-soft">
-            {preview.description}
-          </p>
+        {preview.canViewContent && preview.title ? (
+          <>
+            <h1 className="text-lg font-bold leading-snug text-ink">
+              {preview.title}
+            </h1>
+            {preview.description && (
+              <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink-soft">
+                {preview.description}
+              </p>
+            )}
+            <p className="border-t border-line pt-3 text-sm text-ink-soft">
+              {formatKoreanRange(preview.startDate, preview.endDate)}
+            </p>
+          </>
+        ) : (
+          // 개인정보 보호(P0): 수락 전에는 기도 내용을 보여주지 않는다
+          <>
+            <h1 className="text-lg font-bold leading-snug text-ink">
+              함께 기도해 주세요
+            </h1>
+            <p className="text-[15px] leading-relaxed text-ink-soft">
+              {preview.owner.nickname}님의 기도제목이에요. 함께 기도하기를 수락하면
+              내용을 볼 수 있어요.
+            </p>
+          </>
         )}
-        <p className="border-t border-line pt-3 text-sm text-ink-soft">
-          {formatKoreanRange(preview.startDate, preview.endDate)}
-        </p>
       </div>
 
       <div className="mt-auto flex flex-col gap-2 pt-10">

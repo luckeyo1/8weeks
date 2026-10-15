@@ -46,11 +46,22 @@ export interface OwnedPrayerSummary {
   extensionCount: number;
 }
 
+/** 작성자용 동행자 요약 (명단/해제용) */
+export interface OwnerParticipant {
+  participantId: string;
+  nickname: string | null;
+  joinedAt: string;
+  /** 이번 기간 함께 기도한 횟수(개별 — 작성자 운영용) */
+  checkedCount: number;
+}
+
 /** 작성자용 상세 */
 export interface OwnerPrayerDetail extends OwnedPrayerSummary {
   shareToken: string;
   shareUrl: string;
+  shareRevoked: boolean; // 링크 무효화 여부
   totalPrayerCount: number; // 이번 기간 aggregate (명세 55)
+  participants: OwnerParticipant[];
   updates: PrayerUpdateView[];
   closedAt: string | null;
 }
@@ -122,14 +133,20 @@ export interface AdminPrayer {
   participants: AdminPrayerParticipant[];
 }
 
-/** shareToken join 미리보기 (명세 13/32) */
+/**
+ * shareToken join 미리보기 (명세 13/32).
+ * 개인정보 보호(P0): 수락 전(GUEST/NONE)에는 본문(title/description)을
+ * 서버에서 아예 내려주지 않는다. OWNER/PARTICIPANT 만 내용 접근.
+ */
 export interface JoinPreview {
   shareToken: string;
   /** OWNER/PARTICIPANT(=접근 권한 있는 뷰어)에게만 노출. 그 외 null */
   prayerId: string | null;
   owner: PublicProfile;
-  title: string;
+  /** 권한 있는 뷰어에게만 채워짐. 그 외 null */
+  title: string | null;
   description: string | null;
+  canViewContent: boolean;
   startDate: string;
   endDate: string;
   status: PrayerStatus;

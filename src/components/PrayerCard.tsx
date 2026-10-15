@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import { formatDDay, appTodayISO } from "@/lib/date";
 import { track } from "@/lib/analytics";
-import { checkPrayer } from "@/features/check/actions";
+import { checkPrayer, uncheckPrayer } from "@/features/check/actions";
 import type { ParticipatingPrayer } from "@/types/domain";
 
 /** 홈 "오늘의 기도" 카드 (명세 7/52/53). own=true 면 내가 만든 기도. */
@@ -33,6 +33,18 @@ export function PrayerCard({
         setChecked(true);
         track("prayer_checked", { prayerId: prayer.prayerId });
         toast.show("오늘도 함께 기도해주셔서 감사해요.");
+      } else {
+        toast.show(res.message, "error");
+      }
+    });
+  }
+
+  function handleUncheck() {
+    if (pending) return;
+    startTransition(async () => {
+      const res = await uncheckPrayer(prayer.prayerId);
+      if (res.ok) {
+        setChecked(false);
       } else {
         toast.show(res.message, "error");
       }
@@ -109,6 +121,18 @@ export function PrayerCard({
           <>🙏 오늘 함께 기도했어요</>
         )}
       </button>
+
+      {/* 실수로 눌렀을 때 되돌리기 (조용하게) */}
+      {checked && (
+        <button
+          type="button"
+          onClick={handleUncheck}
+          disabled={pending}
+          className="-mt-1 self-center px-2 py-1 text-[13px] text-ink-soft underline-offset-2 transition-colors hover:text-ink hover:underline"
+        >
+          되돌리기
+        </button>
+      )}
     </article>
   );
 }

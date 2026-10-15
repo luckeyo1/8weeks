@@ -239,6 +239,21 @@ export async function getOwnerPrayerDetail(
     [prayerId],
   );
 
+  // 동행자 명단 (작성자 운영용) + 개별 기도 횟수
+  const parts = await dbAll<{
+    id: string;
+    nickname: string | null;
+    joined_at: string;
+    checked: number;
+  }>(
+    `select pp.id, u.nickname, pp.joined_at,
+       (select count(*) from prayer_checks c where c.prayer_id = pp.prayer_id and c.user_id = pp.user_id) as checked
+     from prayer_participants pp join users u on u.id = pp.user_id
+     where pp.prayer_id = ? and pp.status != 'LEFT'
+     order by pp.joined_at asc`,
+    [prayerId],
+  );
+
   return {
     prayerId: prayer.id,
     title: prayer.title,
@@ -251,7 +266,14 @@ export async function getOwnerPrayerDetail(
     extensionCount: prayer.extension_count,
     shareToken: prayer.share_token,
     shareUrl: buildShareUrl(prayer.share_token),
+    shareRevoked: prayer.share_revoked === 1,
     totalPrayerCount,
+    participants: parts.map((p) => ({
+      participantId: p.id,
+      nickname: p.nickname,
+      joinedAt: p.joined_at,
+      checkedCount: p.checked,
+    })),
     updates: updates.map(toUpdateView),
     closedAt: prayer.closed_at,
   };
@@ -372,6 +394,14 @@ export async function getJoinPreview(
     }
   }
 
+  // 링크 무효화: 작성자 외에는 유효하지 않은 초대로 처리
+  if (prayer.share_revoked === 1 && relation !== "OWNER") {
+    throw new AppError("INVALID_TOKEN");
+  }
+
+  // 본문 노출은 권한 있는 뷰어(작성자/동행자)에게만 (P0)
+  const canViewContent = relation === "OWNER" || relation === "PARTICIPANT";
+
   let latestUpdate: PrayerUpdateView | null = null;
   if (effective !== "ACTIVE") {
     const upd = await dbFirst<PrayerUpdateRow>(
@@ -388,8 +418,9 @@ export async function getJoinPreview(
     prayerId:
       relation === "OWNER" || relation === "PARTICIPANT" ? prayer.id : null,
     owner: ownerProfile(profiles.get(prayer.owner_id)),
-    title: prayer.title,
-    description: prayer.description,
+    title: canViewContent ? prayer.title : null,
+    description: canViewContent ? prayer.description : null,
+    canViewContent,
     startDate: prayer.start_date,
     endDate: prayer.end_date,
     status: effective,

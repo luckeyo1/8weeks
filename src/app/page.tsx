@@ -137,6 +137,20 @@ export default async function LandingPage() {
             </Button>
           </Link>
         </section>
+
+        {/* 푸터 */}
+        <footer className="mt-12 flex flex-col items-center gap-2 border-t border-line pt-6 text-center">
+          <nav className="flex items-center gap-3 text-[13px] text-ink-soft">
+            <Link href="/privacy" className="hover:text-ink">
+              개인정보 처리방침
+            </Link>
+            <span aria-hidden className="text-line">·</span>
+            <Link href="/terms" className="hover:text-ink">
+              이용약관
+            </Link>
+          </nav>
+          <p className="text-[12px] text-ink-soft/70">기도 동행</p>
+        </footer>
       </div>
     </main>
   );

@@ -29,17 +29,23 @@ export async function joinPrayer(
     if (!prayer) throw new AppError("INVALID_TOKEN");
     if (prayer.status === "DELETED") throw new AppError("PRAYER_DELETED");
     if (prayer.owner_id === uid) throw new AppError("OWN_PRAYER");
+    // 링크가 무효화된 경우 신규 수락 차단 (기존 동행자는 유지)
+    if (prayer.share_revoked === 1) throw new AppError("INVALID_TOKEN");
 
     const today = appTodayISO();
     const effective = computeEffectiveStatus(prayer.status, prayer.end_date, today);
     if (!canJoin(effective)) throw new AppError("PRAYER_EXPIRED");
 
-    const existing = await dbFirst<{ id: string; status: string }>(
-      "select id, status from prayer_participants where prayer_id = ? and user_id = ?",
+    const existing = await dbFirst<{ id: string; status: string; removed: number }>(
+      "select id, status, removed from prayer_participants where prayer_id = ? and user_id = ?",
       [prayer.id, uid],
     );
 
     if (existing) {
+      // 작성자가 접근을 해제한 동행자는 재참여 불가
+      if (existing.removed === 1) {
+        throw new AppError("FORBIDDEN", "작성자가 접근을 해제해 다시 참여할 수 없어요.");
+      }
       if (existing.status !== "LEFT") throw new AppError("ALREADY_JOINED");
       await dbRun(
         "update prayer_participants set status = 'ACTIVE', left_at = null, joined_at = datetime('now') where id = ?",

@@ -36,6 +36,17 @@ export default async function SignupPage() {
         <Suspense fallback={<div className="h-40" />}>
           <SignupForm />
         </Suspense>
+        <p className="mt-5 text-center text-[13px] leading-relaxed text-ink-soft">
+          가입하면{" "}
+          <Link href="/terms" className="underline underline-offset-2 hover:text-ink">
+            이용약관
+          </Link>
+          과{" "}
+          <Link href="/privacy" className="underline underline-offset-2 hover:text-ink">
+            개인정보 처리방침
+          </Link>
+          에 동의하는 것으로 간주돼요.
+        </p>
       </div>
     </main>
   );

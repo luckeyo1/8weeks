@@ -26,6 +26,7 @@ create table if not exists prayers (
   start_date      text not null,   -- YYYY-MM-DD
   end_date        text not null,   -- YYYY-MM-DD
   share_token     text not null unique,
+  share_revoked   integer not null default 0,
   extension_count integer not null default 0,
   created_at      text not null default (datetime('now')),
   updated_at      text not null default (datetime('now')),
@@ -44,6 +45,7 @@ create table if not exists prayer_participants (
   user_id    text not null references users(id),
   status     text not null default 'ACTIVE'
              check (status in ('ACTIVE','LEFT','COMPLETED')),
+  removed    integer not null default 0,
   joined_at  text not null default (datetime('now')),
   left_at    text,
   unique (prayer_id, user_id)

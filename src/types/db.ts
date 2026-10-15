@@ -37,6 +37,7 @@ export type PrayerRow = {
   start_date: string; // YYYY-MM-DD
   end_date: string; // YYYY-MM-DD
   share_token: string;
+  share_revoked: number; // 1이면 링크 무효화(신규 참여 차단, 기존 동행자는 유지)
   extension_count: number;
   created_at: string;
   updated_at: string;
@@ -48,6 +49,7 @@ export type ParticipantRow = {
   prayer_id: string;
   user_id: string;
   status: ParticipantStatus;
+  removed: number; // 1이면 작성자가 접근 해제(본인 LEFT 와 구분, 재참여 차단)
   joined_at: string;
   left_at: string | null;
 };

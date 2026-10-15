@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import { formatDDay, formatKoreanRange, appTodayISO } from "@/lib/date";
-import { checkPrayer } from "@/features/check/actions";
+import { checkPrayer, uncheckPrayer } from "@/features/check/actions";
 import { leavePrayer } from "./actions";
 import type { ParticipantPrayerDetail } from "@/types/domain";
 
@@ -35,6 +35,19 @@ export function ParticipantPrayerView({
       if (res.ok) {
         setChecked(true);
         toast.show("오늘도 함께 기도해주셔서 감사해요.");
+        router.refresh();
+      } else {
+        toast.show(res.message, "error");
+      }
+    });
+  }
+
+  function handleUncheck() {
+    if (pending) return;
+    startTransition(async () => {
+      const res = await uncheckPrayer(detail.prayerId);
+      if (res.ok) {
+        setChecked(false);
         router.refresh();
       } else {
         toast.show(res.message, "error");
@@ -109,6 +122,17 @@ export function ParticipantPrayerView({
               <>🙏 오늘 함께 기도했어요</>
             )}
           </button>
+
+          {checked && (
+            <button
+              type="button"
+              onClick={handleUncheck}
+              disabled={pending}
+              className="-mt-2 self-center px-2 py-1 text-[13px] text-ink-soft underline-offset-2 transition-colors hover:text-ink hover:underline"
+            >
+              되돌리기
+            </button>
+          )}
 
           {/* streak (명세 20) — 죄책감 없는 담담한 표현 */}
           <p className="text-center text-sm text-ink-soft">

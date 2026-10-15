@@ -5,6 +5,7 @@ import { isAdmin } from "@/features/admin/guard";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { SignOutButton } from "@/features/auth/SignOutButton";
+import { DeleteAccountButton } from "@/features/auth/DeleteAccountButton";
 
 export const metadata: Metadata = {
   title: "내 정보",
@@ -79,6 +80,20 @@ export default async function ProfilePage() {
 
       <div className="mt-2">
         <SignOutButton />
+      </div>
+
+      {/* 약관 / 개인정보 / 탈퇴 */}
+      <div className="mt-4 flex flex-col items-center gap-3 border-t border-line pt-6">
+        <nav className="flex items-center gap-3 text-[13px] text-ink-soft">
+          <Link href="/privacy" className="hover:text-ink">
+            개인정보 처리방침
+          </Link>
+          <span aria-hidden className="text-line">·</span>
+          <Link href="/terms" className="hover:text-ink">
+            이용약관
+          </Link>
+        </nav>
+        <DeleteAccountButton />
       </div>
     </div>
   );
