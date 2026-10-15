@@ -33,6 +33,7 @@ export function SignupForm() {
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [pending, startTransition] = useTransition();
+  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
 
   const loginHref = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
 
@@ -69,8 +70,8 @@ export function SignupForm() {
         churchName: form.churchName.trim() || undefined,
       });
       if (res.ok) {
-        router.replace(returnUrl);
-        router.refresh();
+        // 복구 코드를 1회 보여준 뒤 이어서 이동한다.
+        setRecoveryCode(res.data.recoveryCode);
       } else if (res.message.includes("아이디")) {
         setErrors({ username: res.message });
       } else if (res.message.includes("비밀번호")) {
@@ -79,6 +80,18 @@ export function SignupForm() {
         setErrors({ general: res.message });
       }
     });
+  }
+
+  if (recoveryCode) {
+    return (
+      <RecoveryCodeScreen
+        code={recoveryCode}
+        onContinue={() => {
+          router.replace(returnUrl);
+          router.refresh();
+        }}
+      />
+    );
   }
 
   return (
@@ -132,5 +145,60 @@ export function SignupForm() {
         </Link>
       </p>
     </form>
+  );
+}
+
+/** 가입 직후 복구 코드 1회 안내 화면 */
+function RecoveryCodeScreen({
+  code,
+  onContinue,
+}: {
+  code: string;
+  onContinue: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* 클립보드 미지원 환경은 무시 */
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-bold text-ink">복구 코드를 저장해두세요</h2>
+        <p className="text-[15px] leading-relaxed text-ink-soft">
+          비밀번호를 잊었을 때 이 코드로 다시 들어올 수 있어요. 지금 한 번만
+          보여드리니 안전한 곳에 적어두세요.
+        </p>
+      </div>
+
+      <div className="card flex flex-col items-center gap-3 p-6">
+        <p className="select-all text-center text-2xl font-bold tracking-[0.15em] text-ink">
+          {code}
+        </p>
+        <button
+          type="button"
+          onClick={copy}
+          className="px-3 py-1 text-sm text-primary underline-offset-2 hover:underline"
+        >
+          {copied ? "복사했어요" : "복사하기"}
+        </button>
+      </div>
+
+      <p className="text-[13px] leading-relaxed text-ink-soft">
+        이 코드는 다시 볼 수 없어요. 잃어버리면 관리자에게 재발급을 요청해야
+        해요.
+      </p>
+
+      <Button size="lg" fullWidth onClick={onContinue}>
+        저장했어요 · 시작하기
+      </Button>
+    </div>
   );
 }

@@ -67,6 +67,12 @@ export function LoginForm() {
           가입하기
         </Link>
       </p>
+      <Link
+        href="/recover"
+        className="text-center text-[13px] text-ink-soft hover:text-ink"
+      >
+        비밀번호를 잊으셨나요?
+      </Link>
     </form>
   );
 }

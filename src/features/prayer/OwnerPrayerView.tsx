@@ -126,6 +126,12 @@ export function OwnerPrayerView({ detail }: { detail: OwnerPrayerDetail }) {
           </section>
         ) : (
           <section className="flex flex-col gap-2">
+            {detail.participantCount === 0 && (
+              <p className="rounded-card bg-primary-soft/50 px-4 py-3 text-sm leading-relaxed text-ink-soft">
+                아직 함께하는 사람이 없어요. 기도를 부탁하고 싶은 분에게 QR이나
+                링크로 조용히 전해보세요.
+              </p>
+            )}
             <div className="flex gap-2">
               <Button className="flex-1" onClick={() => setQrOpen(true)}>
                 QR로 공유하기

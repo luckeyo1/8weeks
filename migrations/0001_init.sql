@@ -10,10 +10,12 @@ create table if not exists users (
   email             text,
   nickname          text,
   profile_image_url text,
-  is_admin          integer not null default 0,
   created_at        text not null default (datetime('now')),
   updated_at        text not null default (datetime('now'))
 );
+-- NOTE: username/password_hash/church_name 은 0002, is_admin 은 0004,
+-- recovery_code_hash 는 0006 에서 추가됨 (원격 DB 가 증분 적용되었기 때문에
+-- 0001 은 최초 베이스라인 그대로 유지한다).
 
 -- prayers
 create table if not exists prayers (
@@ -26,7 +28,6 @@ create table if not exists prayers (
   start_date      text not null,   -- YYYY-MM-DD
   end_date        text not null,   -- YYYY-MM-DD
   share_token     text not null unique,
-  share_revoked   integer not null default 0,
   extension_count integer not null default 0,
   created_at      text not null default (datetime('now')),
   updated_at      text not null default (datetime('now')),
@@ -45,7 +46,6 @@ create table if not exists prayer_participants (
   user_id    text not null references users(id),
   status     text not null default 'ACTIVE'
              check (status in ('ACTIVE','LEFT','COMPLETED')),
-  removed    integer not null default 0,
   joined_at  text not null default (datetime('now')),
   left_at    text,
   unique (prayer_id, user_id)

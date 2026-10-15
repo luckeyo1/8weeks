@@ -68,12 +68,19 @@ export default async function LandingPage() {
               </Button>
             </Link>
             {!user && (
-              <Link
-                href="/login"
-                className="text-center text-sm text-ink-soft hover:text-ink"
-              >
-                이미 계정이 있어요 · 로그인
-              </Link>
+              <>
+                <Link href="/demo">
+                  <Button variant="secondary" size="lg" fullWidth>
+                    먼저 체험해보기
+                  </Button>
+                </Link>
+                <Link
+                  href="/login"
+                  className="text-center text-sm text-ink-soft hover:text-ink"
+                >
+                  이미 계정이 있어요 · 로그인
+                </Link>
+              </>
             )}
           </div>
         </section>

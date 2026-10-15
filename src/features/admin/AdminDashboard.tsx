@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cn } from "@/lib/cn";
 import { formatKoreanDate, formatKoreanRange } from "@/lib/date";
+import { adminReissueRecoveryCode } from "./actions";
 import type { AdminOverview, AdminPrayer, AdminUser } from "@/types/domain";
 
 type Tab = "overview" | "users" | "prayers";
@@ -94,6 +95,7 @@ function Users({ users }: { users: AdminUser[] }) {
             <Th>가입일</Th>
             <Th className="text-right">작성</Th>
             <Th className="text-right">참여</Th>
+            <Th className="text-right">복구</Th>
           </tr>
         </thead>
         <tbody>
@@ -107,11 +109,56 @@ function Users({ users }: { users: AdminUser[] }) {
               </Td>
               <Td className="text-right tabular-nums">{u.ownedCount}</Td>
               <Td className="text-right tabular-nums">{u.joinedCount}</Td>
+              <Td className="text-right">
+                <RecoveryReissue userId={u.id} />
+              </Td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** 관리자: 특정 사용자 복구 코드 재발급 (코드는 1회 노출, 관리자가 전달) */
+function RecoveryReissue({ userId }: { userId: string }) {
+  const [code, setCode] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  if (code) {
+    return (
+      <div className="flex items-center justify-end gap-2">
+        <code className="select-all rounded bg-primary-soft px-1.5 py-0.5 text-[13px] font-semibold tracking-wide text-primary">
+          {code}
+        </code>
+        <button
+          type="button"
+          onClick={() => setCode(null)}
+          className="text-[12px] text-ink-soft hover:text-ink"
+        >
+          닫기
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() =>
+        startTransition(async () => {
+          setError(null);
+          const res = await adminReissueRecoveryCode(userId);
+          if (res.ok) setCode(res.data.recoveryCode);
+          else setError(res.message);
+        })
+      }
+      className="text-[13px] text-primary underline-offset-2 hover:underline disabled:opacity-50"
+    >
+      {pending ? "발급 중…" : error ? "다시 시도" : "재발급"}
+    </button>
   );
 }
 

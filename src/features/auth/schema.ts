@@ -37,3 +37,10 @@ export const signInSchema = z.object({
   username: z.string().trim().min(1, "아이디를 입력해주세요."),
   password: z.string().min(1, "비밀번호를 입력해주세요."),
 });
+
+/** 복구 코드로 비밀번호 재설정 */
+export const recoverSchema = z.object({
+  username: z.string().trim().min(1, "아이디를 입력해주세요."),
+  recoveryCode: z.string().trim().min(1, "복구 코드를 입력해주세요."),
+  newPassword: passwordSchema,
+});
