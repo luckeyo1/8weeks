@@ -6,6 +6,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { SignOutButton } from "@/features/auth/SignOutButton";
 import { DeleteAccountButton } from "@/features/auth/DeleteAccountButton";
+import { PushToggle } from "@/features/push/PushToggle";
 
 export const metadata: Metadata = {
   title: "내 정보",
@@ -28,6 +29,11 @@ export default async function ProfilePage() {
           <p className="text-lg font-semibold text-ink">{profile.nickname}</p>
           <p className="text-sm text-ink-soft">함께 기도해요</p>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-medium text-ink-soft">알림</p>
+        <PushToggle />
       </div>
 
       <div className="flex flex-col gap-2">

@@ -19,4 +19,14 @@ interface CloudflareEnv {
 
   /** 서비스 기준 timezone (선택) */
   NEXT_PUBLIC_APP_TIME_ZONE?: string;
+
+  /** Web Push VAPID 공개키 (base64url, 65바이트 EC 포인트) — 클라이언트 구독에 사용 */
+  VAPID_PUBLIC_KEY?: string;
+  /** Web Push VAPID 개인키 (base64url, 32바이트 d) — 서버 서명 전용(비밀) */
+  VAPID_PRIVATE_KEY?: string;
+  /** VAPID subject (mailto:운영자 이메일 또는 서비스 URL) */
+  VAPID_SUBJECT?: string;
+
+  /** 일일 리마인더 트리거 보호용 비밀 (스케줄러가 헤더로 전달) */
+  CRON_SECRET?: string;
 }

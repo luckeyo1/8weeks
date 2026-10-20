@@ -71,3 +71,12 @@ export type PrayerUpdateRow = {
   content: string | null;
   created_at: string;
 };
+
+export type PushSubscriptionRow = {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string; // 구독 공개키 (base64url)
+  auth: string; // 구독 auth secret (base64url)
+  created_at: string;
+};

@@ -58,3 +58,48 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
+
+/* 푸시 알림 (P1 리마인더)
+ * 민감정보 보호를 위해 "데이터 없는 푸시"를 쓴다 → 고정 문구만 표시.
+ * (기도 내용·이름은 알림에 담지 않는다)
+ */
+self.addEventListener("push", (event) => {
+  let title = "오늘의 기도";
+  let body = "오늘 함께 기도할 제목이 있어요.";
+  // 혹시 데이터가 실려오면 title/body 만 반영(민감정보는 서버가 담지 않음)
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      if (data && typeof data.title === "string") title = data.title;
+      if (data && typeof data.body === "string") body = data.body;
+    } catch {
+      /* 텍스트/빈 데이터는 무시하고 기본 문구 사용 */
+    }
+  }
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      tag: "daily-reminder",
+      data: { url: "/home" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/home";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) {
+          client.navigate(target);
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+      return undefined;
+    }),
+  );
+});
