@@ -21,7 +21,7 @@ type SampleCard = {
 const SAMPLES: SampleCard[] = [
   {
     id: "s1",
-    name: "지은",
+    name: "다은",
     title: "가족의 건강을 위해",
     body: "아버지 수술이 잘 마무리되고, 회복하는 동안 온 가족이 평안하기를 바라요.",
     dday: "D-12",
