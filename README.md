@@ -184,7 +184,7 @@ src/
     auth/session.ts         #   HMAC 서명 세션 토큰
     auth/google.ts          #   Google OAuth 헬퍼
     date.ts token.ts status.ts errors.ts
-    bible/                  #   오늘의 말씀 데이터(verses.ts, 자동 생성) + 날짜별 선택
+    bible/                  #   오늘의 말씀(verses.ts) · 1년 1독 읽기표(plan-data.ts) — 둘 다 자동 생성
   types/                    # db(Row) / domain(화면용) 타입
 migrations/0001_init.sql    # D1 스키마 (SQLite) — 이후 0002~0008 증분
 seed.sql                    # 개발용 seed (마이그레이션과 분리)
@@ -221,6 +221,7 @@ open-next.config.ts
 - [x] 관계의 숫자화 금지 (개별 기도 횟수 비노출, 기간 aggregate 만)
 - [x] 홈 "오늘의 말씀" (날마다 바뀌는 구절, 개역한글) + 성경 읽기 습관 체크
   (하루 1회, 이번 주 일~토 표시, 본인만 보임 — 연속 기록/끊김 경고 없음)
+- [x] 1년 1독 "오늘 읽을 곳" (달력 기준, 1/1 창세기 1장 → 12/31 요한계시록 22장)
 
 ---
 
@@ -242,6 +243,15 @@ open-next.config.ts
   ```
 - 같은 날에는 모든 사용자에게 같은 구절이 보이고, 날마다 다음 구절로 넘어갑니다
   (현재 210구절 → 약 7개월 주기).
+- **1년 1독 읽기표**(`src/lib/bible/plan-data.ts`)는 `scripts/bible/gen_plan.py` 가
+  만든 파일입니다. 달력 기준(1월 1일 창세기 1장 → 12월 31일 요한계시록 22장)이고,
+  장마다 길이가 크게 달라 **장 수가 아니라 본문 글자 수**로 하루 분량을 고르게
+  나눕니다(편차 제곱합 최소, 평년·윤년 표 각각). 하루 약 3,600자, 2,571~4,945자.
+
+  ```bash
+  python3 scripts/bible/gen_plan.py \
+    /tmp/bible-db/data/krv/krv_holybible.jsonl src/lib/bible/plan-data.ts
+  ```
 - **배포 시** `npm run db:migrate:remote` 로 `0008_bible_reading.sql` 을 적용해야
   읽기 체크가 나타납니다. 적용 전에는 말씀만 보이고 체크 UI 는 숨겨집니다.
 

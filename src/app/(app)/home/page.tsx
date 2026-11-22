@@ -13,6 +13,7 @@ import {
   formatVerseRef,
   pickDailyVerse,
 } from "@/lib/bible/daily";
+import { formatReading, todaysReading } from "@/lib/bible/plan";
 import type { ParticipatingPrayer } from "@/types/domain";
 
 export const metadata: Metadata = {
@@ -70,6 +71,7 @@ export default async function HomePage() {
           reference: formatVerseRef(verse),
           translation: VERSE_TRANSLATION,
         }}
+        plan={formatReading(todaysReading(today))}
         reading={reading}
       />
 

@@ -55,7 +55,13 @@ function demoReading(today: string): BibleReadingWeek {
 // 정적 렌더(빌드 시점) 값 — 마운트 후 실제 오늘로 바꾼다(하이드레이션 불일치 방지).
 const STATIC_TODAY = "2026-11-24";
 
-export function DemoExperience({ verse }: { verse: DailyVerseView }) {
+export function DemoExperience({
+  verse,
+  plan,
+}: {
+  verse: DailyVerseView;
+  plan: string;
+}) {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const checkedCount = Object.values(checked).filter(Boolean).length;
   const [today, setToday] = useState(STATIC_TODAY);
@@ -87,6 +93,7 @@ export function DemoExperience({ verse }: { verse: DailyVerseView }) {
         <DailyVerseCard
           key={today}
           verse={verse}
+          plan={plan}
           reading={demoReading(today)}
           demo
         />

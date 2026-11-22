@@ -18,7 +18,7 @@ export type DailyVerseView = {
 };
 
 /**
- * 홈 "오늘의 말씀" + 성경 읽기 습관 체크.
+ * 홈 "오늘의 말씀" + 1년 1독 "오늘 읽을 곳" + 성경 읽기 습관 체크.
  * - 체크는 하루 1회, 다시 누르면 해제(실수 대응). 낙관적 업데이트 후 실패 시 되돌린다.
  * - 이번 주(일~토) 점 표시로 흐름만 보여준다. 연속 기록(streak)·끊김 경고는 두지 않는다
  *   (제품 원칙: 죄책감을 주는 UI, 의미 없는 숫자 지표 금지).
@@ -26,10 +26,13 @@ export type DailyVerseView = {
  */
 export function DailyVerseCard({
   verse,
+  plan = null,
   reading,
   demo = false,
 }: {
   verse: DailyVerseView;
+  /** 1년 1독 읽기표의 오늘 범위 ("사도행전 20–21장") */
+  plan?: string | null;
   reading: BibleReadingWeek | null;
   demo?: boolean;
 }) {
@@ -60,7 +63,9 @@ export function DailyVerseCard({
     if (demo) return;
 
     startTransition(async () => {
-      const res = next ? await checkBibleReading() : await uncheckBibleReading();
+      const res = next
+        ? await checkBibleReading()
+        : await uncheckBibleReading();
       if (!res.ok) {
         apply(!next);
         toast.show(res.message, "error");
@@ -97,50 +102,72 @@ export function DailyVerseCard({
         </figure>
       </div>
 
-      {showCheck && reading && (
-        <div className="flex flex-col items-start border-t border-line px-4 pb-3.5 pt-1">
-          <label className="-ml-1 flex min-h-[48px] cursor-pointer items-center gap-2.5 px-1">
-            <input
-              type="checkbox"
-              className="peer sr-only"
-              checked={readToday}
-              onChange={toggle}
-              disabled={pending}
-            />
-            <span
-              aria-hidden
-              className={cn(
-                "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
-                "peer-focus-visible:ring-2 peer-focus-visible:ring-primary/60 peer-focus-visible:ring-offset-2",
-                readToday
-                  ? "border-primary bg-primary text-white"
-                  : "border-ink-soft/40 bg-surface",
-              )}
-            >
-              {readToday && (
-                <svg
-                  viewBox="0 0 16 16"
-                  className="h-3.5 w-3.5 animate-check-pop"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.4}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M3.5 8.5l3 3 6-7" />
-                </svg>
-              )}
-            </span>
-            <span className="text-[15px] font-medium text-ink">
-              오늘 성경 읽었어요
-            </span>
-          </label>
+      {(plan || (showCheck && reading)) && (
+        <div
+          className={cn(
+            "flex flex-col items-start border-t border-line px-4",
+            showCheck ? "pb-3.5" : "pb-4",
+            plan ? "pt-3.5" : "pt-1",
+          )}
+        >
+          {plan && (
+            <div className="flex flex-col gap-0.5">
+              <p className="text-[13px] text-ink-soft">
+                오늘 읽을 곳<span aria-hidden> · </span>
+                <span className="sr-only">, </span>1년 1독
+              </p>
+              <p className="break-keep text-[15px] font-semibold text-ink">
+                {plan}
+              </p>
+            </div>
+          )}
 
-          <WeekStrip
-            weekDates={reading.weekDates}
-            readDates={readDates}
-            today={today}
-          />
+          {showCheck && reading && (
+            <>
+              <label className="-ml-1 flex min-h-[48px] cursor-pointer items-center gap-2.5 px-1">
+                <input
+                  type="checkbox"
+                  className="peer sr-only"
+                  checked={readToday}
+                  onChange={toggle}
+                  disabled={pending}
+                />
+                <span
+                  aria-hidden
+                  className={cn(
+                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
+                    "peer-focus-visible:ring-2 peer-focus-visible:ring-primary/60 peer-focus-visible:ring-offset-2",
+                    readToday
+                      ? "border-primary bg-primary text-white"
+                      : "border-ink-soft/40 bg-surface",
+                  )}
+                >
+                  {readToday && (
+                    <svg
+                      viewBox="0 0 16 16"
+                      className="h-3.5 w-3.5 animate-check-pop"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.4}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3.5 8.5l3 3 6-7" />
+                    </svg>
+                  )}
+                </span>
+                <span className="text-[15px] font-medium text-ink">
+                  오늘 성경 읽었어요
+                </span>
+              </label>
+
+              <WeekStrip
+                weekDates={reading.weekDates}
+                readDates={readDates}
+                today={today}
+              />
+            </>
+          )}
         </div>
       )}
     </section>
