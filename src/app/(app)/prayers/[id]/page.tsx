@@ -12,6 +12,10 @@ import { Button } from "@/components/ui/Button";
 import { OwnerPrayerView } from "@/features/prayer/OwnerPrayerView";
 import { ParticipantPrayerView } from "@/features/participant/ParticipantPrayerView";
 import { AppError } from "@/lib/errors";
+import type {
+  OwnerPrayerDetail,
+  ParticipantPrayerDetail,
+} from "@/types/domain";
 
 // 상세는 검색 색인 금지 (명세 84)
 export const metadata: Metadata = {
@@ -53,45 +57,53 @@ export default async function PrayerDetailPage({
     );
   }
 
+  // 데이터 조회만 try 안에서 하고, 화면은 밖에서 그린다 (react-hooks/error-boundaries)
+  let ownerDetail: OwnerPrayerDetail | null = null;
+  let participantDetail: ParticipantPrayerDetail | null = null;
+  let message = "기도제목을 불러오지 못했어요.";
   try {
     if (relation === "OWNER") {
-      const detail = await getOwnerPrayerDetail(id, profile.id);
-      return (
-        <div>
-          <PageHeader title="내 기도제목" backHref="/my-prayers" />
-          <div className="pt-2">
-            <OwnerPrayerView detail={detail} />
-          </div>
-        </div>
-      );
+      ownerDetail = await getOwnerPrayerDetail(id, profile.id);
+    } else {
+      participantDetail = await getParticipantPrayerDetail(id, profile.id);
     }
+  } catch (e) {
+    if (e instanceof AppError) message = e.message;
+  }
 
-    const detail = await getParticipantPrayerDetail(id, profile.id);
+  if (ownerDetail) {
+    return (
+      <div>
+        <PageHeader title="내 기도제목" backHref="/my-prayers" />
+        <div className="pt-2">
+          <OwnerPrayerView detail={ownerDetail} />
+        </div>
+      </div>
+    );
+  }
+
+  if (participantDetail) {
     return (
       <div>
         <PageHeader title="함께 기도 중" backHref="/home" />
         <div className="pt-2">
-          <ParticipantPrayerView detail={detail} />
+          <ParticipantPrayerView detail={participantDetail} />
         </div>
       </div>
     );
-  } catch (e) {
-    const message =
-      e instanceof AppError
-        ? e.message
-        : "기도제목을 불러오지 못했어요.";
-    return (
-      <div>
-        <PageHeader backHref="/home" />
-        <EmptyState
-          title={message}
-          action={
-            <Link href="/home">
-              <Button variant="secondary">홈으로</Button>
-            </Link>
-          }
-        />
-      </div>
-    );
   }
+
+  return (
+    <div>
+      <PageHeader backHref="/home" />
+      <EmptyState
+        title={message}
+        action={
+          <Link href="/home">
+            <Button variant="secondary">홈으로</Button>
+          </Link>
+        }
+      />
+    </div>
+  );
 }

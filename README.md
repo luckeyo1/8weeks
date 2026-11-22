@@ -22,7 +22,7 @@
 
 | 영역 | 사용 기술 |
 | --- | --- |
-| 프레임워크 | Next.js 15 (App Router) + React 18 |
+| 프레임워크 | Next.js 16 (App Router) + React 18 |
 | 언어 | TypeScript (strict) |
 | 스타일 | Tailwind CSS, Pretendard |
 | 호스팅 | **Cloudflare Workers** (OpenNext 어댑터) |

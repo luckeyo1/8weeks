@@ -7,6 +7,7 @@ import { AppError } from "@/lib/errors";
 import { JoinView } from "@/features/participant/JoinView";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import type { JoinPreview } from "@/types/domain";
 
 // 공유 페이지는 검색 색인 금지 (명세 82). OG 에도 실제 기도 내용 미포함 (명세 83).
 export const metadata: Metadata = {
@@ -35,18 +36,22 @@ export default async function JoinPage({
 
   const user = await getAuthUser();
 
+  // 데이터 조회만 try 안에서 하고, 화면은 밖에서 그린다 (react-hooks/error-boundaries)
+  let preview: JoinPreview | null = null;
+  let message = "기도 초대를 확인할 수 없어요.";
   try {
-    const preview = await getJoinPreview(token, user);
-    return (
-      <main className="app-shell">
-        <JoinView preview={preview} isAuthed={Boolean(user)} />
-      </main>
-    );
+    preview = await getJoinPreview(token, user);
   } catch (e) {
-    const message =
-      e instanceof AppError ? e.message : "기도 초대를 확인할 수 없어요.";
-    return <JoinError message={message} />;
+    if (e instanceof AppError) message = e.message;
   }
+
+  if (!preview) return <JoinError message={message} />;
+
+  return (
+    <main className="app-shell">
+      <JoinView preview={preview} isAuthed={Boolean(user)} />
+    </main>
+  );
 }
 
 function JoinError({ message }: { message: string }) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
@@ -52,8 +52,10 @@ function demoReading(today: string): BibleReadingWeek {
   };
 }
 
-// 정적 렌더(빌드 시점) 값 — 마운트 후 실제 오늘로 바꾼다(하이드레이션 불일치 방지).
+// 정적 렌더(빌드 시점)·하이드레이션에는 고정값, 그 뒤엔 브라우저의 실제 오늘
+// (useSyncExternalStore 의 server snapshot 으로 하이드레이션 불일치를 막는다).
 const STATIC_TODAY = "2026-11-24";
+const noopSubscribe = () => () => {};
 
 export function DemoExperience({
   verse,
@@ -64,8 +66,11 @@ export function DemoExperience({
 }) {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const checkedCount = Object.values(checked).filter(Boolean).length;
-  const [today, setToday] = useState(STATIC_TODAY);
-  useEffect(() => setToday(appTodayISO()), []);
+  const today = useSyncExternalStore(
+    noopSubscribe,
+    () => appTodayISO(),
+    () => STATIC_TODAY,
+  );
 
   return (
     <div className="flex flex-1 flex-col px-6 pb-16 pt-8">
