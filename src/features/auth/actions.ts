@@ -12,6 +12,7 @@ import { generateRecoveryCode, normalizeRecoveryCode } from "@/lib/auth/recovery
 import { getCfEnv } from "@/lib/cf";
 import { dbFirst, dbRun, newId } from "@/lib/db";
 import { publicEnv } from "@/lib/env";
+import { isMissingTableError } from "@/services/bible";
 import { AppError, toActionError, ok, type ActionResult } from "@/lib/errors";
 import { recoverSchema, signInSchema, signUpSchema } from "./schema";
 import type { UserRow } from "@/types/db";
@@ -161,6 +162,16 @@ export async function signOut(): Promise<void> {
   store.delete(SESSION_COOKIE);
 }
 
+/** 테이블이 아직 없는(마이그레이션 미적용) 부가 기록 삭제는 조용히 건너뛴다. */
+async function deleteOptional(sql: string, params: unknown[]): Promise<void> {
+  try {
+    await dbRun(sql, params);
+  } catch (e) {
+    if (isMissingTableError(e)) return;
+    throw e;
+  }
+}
+
 /**
  * 회원 탈퇴 (P0 개인정보). 내가 만든 기도·함께한 기록을 모두 지우고 계정을 삭제한다.
  * 자식 행을 먼저 지워 참조 무결성을 지킨다(soft-delete 아님 — 완전 삭제).
@@ -190,7 +201,11 @@ export async function deleteAccount(): Promise<ActionResult> {
     // 2) 내가 함께 기도한 다른 사람 기도의 기록 정리
     await dbRun("delete from prayer_checks where user_id = ?", [uid]);
     await dbRun("delete from prayer_participants where user_id = ?", [uid]);
-    // 3) 내 기도제목, 세션, 계정 삭제
+    // 3) 개인 기록: 성경 읽기 체크, 알림 구독
+    //    (마이그레이션 적용 전이라 테이블이 없을 수도 있어 그 경우만 건너뛴다)
+    await deleteOptional("delete from bible_readings where user_id = ?", [uid]);
+    await deleteOptional("delete from push_subscriptions where user_id = ?", [uid]);
+    // 4) 내 기도제목, 세션, 계정 삭제
     await dbRun("delete from prayers where owner_id = ?", [uid]);
     await dbRun("delete from sessions where user_id = ?", [uid]);
     await dbRun("delete from users where id = ?", [uid]);

@@ -85,6 +85,17 @@ export function formatKoreanDateWithWeekday(iso: string): string {
   return `${month}월 ${day}일 ${weekday}요일`;
 }
 
+/** 요일 한 글자 ("일"~"토") */
+export function weekdayShortKo(iso: string): string {
+  return WEEKDAYS_KO[parseISODate(iso).getUTCDay()] ?? "";
+}
+
+/** iso 가 속한 주(일요일 시작)의 7일 "YYYY-MM-DD" 목록 */
+export function weekDatesISO(iso: string): string[] {
+  const sunday = addDaysISO(iso, -parseISODate(iso).getUTCDay());
+  return Array.from({ length: 7 }, (_, i) => addDaysISO(sunday, i));
+}
+
 /** "9월 22일" */
 export function formatKoreanDate(iso: string): string {
   const d = parseISODate(iso);

@@ -9,6 +9,8 @@ import {
   formatKoreanRange,
   isPastEndDate,
   toLocalDateISO,
+  weekDatesISO,
+  weekdayShortKo,
 } from "./date";
 
 describe("toLocalDateISO", () => {
@@ -72,5 +74,37 @@ describe("한국어 날짜 포맷", () => {
     expect(formatKoreanRange("2025-09-22", "2025-09-29")).toBe(
       "9월 22일 ~ 9월 29일",
     );
+  });
+});
+
+describe("weekDatesISO", () => {
+  it("일요일 시작 7일을 돌려준다 (수요일 기준)", () => {
+    // 2026-11-25 는 수요일
+    expect(weekDatesISO("2026-11-25")).toEqual([
+      "2026-11-22",
+      "2026-11-23",
+      "2026-11-24",
+      "2026-11-25",
+      "2026-11-26",
+      "2026-11-27",
+      "2026-11-28",
+    ]);
+  });
+  it("일요일이면 그날부터, 토요일이면 그날까지", () => {
+    expect(weekDatesISO("2026-11-22")[0]).toBe("2026-11-22");
+    expect(weekDatesISO("2026-11-28")[6]).toBe("2026-11-28");
+  });
+  it("월·연 경계를 넘는다", () => {
+    // 2027-01-01 은 금요일 → 그 주 일요일은 2026-12-27
+    const week = weekDatesISO("2027-01-01");
+    expect(week[0]).toBe("2026-12-27");
+    expect(week[6]).toBe("2027-01-02");
+  });
+});
+
+describe("weekdayShortKo", () => {
+  it("요일 한 글자", () => {
+    expect(weekdayShortKo("2026-11-22")).toBe("일");
+    expect(weekdayShortKo("2026-11-28")).toBe("토");
   });
 });

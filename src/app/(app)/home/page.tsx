@@ -2,10 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireProfile } from "@/features/auth/service";
 import { getOwnActiveChecklist, getTodaysPrayers } from "@/services/prayers";
+import { getBibleReadingWeek } from "@/services/bible";
+import { DailyVerseCard } from "@/features/bible/DailyVerseCard";
 import { PrayerCard } from "@/components/PrayerCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { appTodayISO, formatKoreanDateWithWeekday } from "@/lib/date";
+import {
+  VERSE_TRANSLATION,
+  formatVerseRef,
+  pickDailyVerse,
+} from "@/lib/bible/daily";
 import type { ParticipatingPrayer } from "@/types/domain";
 
 export const metadata: Metadata = {
@@ -23,10 +30,13 @@ function byUnchecked(a: ParticipatingPrayer, b: ParticipatingPrayer) {
 
 export default async function HomePage() {
   const profile = await requireProfile();
-  const [shared, own] = await Promise.all([
+  const today = appTodayISO();
+  const [shared, own, reading] = await Promise.all([
     getTodaysPrayers(profile.id), // 공유받아 함께 기도하는 것
     getOwnActiveChecklist(profile.id), // 내가 만든 진행 중 기도
+    getBibleReadingWeek(profile.id, today), // 이번 주 성경 읽기 (본인만)
   ]);
+  const verse = pickDailyVerse(today);
 
   const sharedSorted = [...shared].sort(byUnchecked);
   const ownSorted = [...own].sort(byUnchecked);
@@ -40,7 +50,7 @@ export default async function HomePage() {
     <div className="flex flex-col gap-6">
       <div>
         <p className="text-sm text-ink-soft">
-          {formatKoreanDateWithWeekday(appTodayISO())}
+          {formatKoreanDateWithWeekday(today)}
         </p>
         <h1 className="mt-1 text-xl font-bold text-ink">
           안녕하세요, {profile.nickname}님.
@@ -53,6 +63,15 @@ export default async function HomePage() {
           </p>
         )}
       </div>
+
+      <DailyVerseCard
+        verse={{
+          text: verse.text,
+          reference: formatVerseRef(verse),
+          translation: VERSE_TRANSLATION,
+        }}
+        reading={reading}
+      />
 
       {nothing ? (
         <EmptyState

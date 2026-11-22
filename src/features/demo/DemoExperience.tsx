@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
+import { appTodayISO, weekDatesISO } from "@/lib/date";
+import {
+  DailyVerseCard,
+  type DailyVerseView,
+} from "@/features/bible/DailyVerseCard";
+import type { BibleReadingWeek } from "@/types/domain";
 
 /**
  * 가입 전 체험용 데모 (P1). 저장 없음 — 로컬 상태로만 동작한다.
@@ -35,9 +41,25 @@ const SAMPLES: SampleCard[] = [
   },
 ];
 
-export function DemoExperience() {
+/** 체험용 성경 읽기 기록: 이번 주 오늘 이전 이틀을 읽은 것으로 보여준다 (저장 없음). */
+function demoReading(today: string): BibleReadingWeek {
+  const weekDates = weekDatesISO(today);
+  return {
+    available: true,
+    today,
+    weekDates,
+    readDates: weekDates.filter((d) => d < today).slice(-2),
+  };
+}
+
+// 정적 렌더(빌드 시점) 값 — 마운트 후 실제 오늘로 바꾼다(하이드레이션 불일치 방지).
+const STATIC_TODAY = "2026-11-24";
+
+export function DemoExperience({ verse }: { verse: DailyVerseView }) {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const checkedCount = Object.values(checked).filter(Boolean).length;
+  const [today, setToday] = useState(STATIC_TODAY);
+  useEffect(() => setToday(appTodayISO()), []);
 
   return (
     <div className="flex flex-1 flex-col px-6 pb-16 pt-8">
@@ -61,7 +83,16 @@ export function DemoExperience() {
         </p>
       </header>
 
-      <section className="mt-8 flex flex-col gap-3">
+      <div className="mt-8">
+        <DailyVerseCard
+          key={today}
+          verse={verse}
+          reading={demoReading(today)}
+          demo
+        />
+      </div>
+
+      <section className="mt-6 flex flex-col gap-3">
         {SAMPLES.map((s) => {
           const isChecked = Boolean(checked[s.id]);
           return (

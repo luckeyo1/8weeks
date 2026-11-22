@@ -176,7 +176,7 @@ src/
     auth/callback/          #   code 교환 → 사용자 upsert → 세션 쿠키 발급
     manifest.ts robots.ts
   components/               # 공통 UI
-  features/                 # auth / prayer / participant / check
+  features/                 # auth / prayer / participant / check / bible
   services/                 # D1 데이터 접근 레이어 (권한 필터링)
   lib/
     cf.ts                   #   Cloudflare 컨텍스트(D1/secret) 접근
@@ -184,8 +184,9 @@ src/
     auth/session.ts         #   HMAC 서명 세션 토큰
     auth/google.ts          #   Google OAuth 헬퍼
     date.ts token.ts status.ts errors.ts
+    bible/                  #   오늘의 말씀 데이터(verses.ts, 자동 생성) + 날짜별 선택
   types/                    # db(Row) / domain(화면용) 타입
-migrations/0001_init.sql    # D1 스키마 (SQLite)
+migrations/0001_init.sql    # D1 스키마 (SQLite) — 이후 0002~0008 증분
 seed.sql                    # 개발용 seed (마이그레이션과 분리)
 wrangler.jsonc              # Workers + D1 바인딩
 open-next.config.ts
@@ -218,8 +219,31 @@ open-next.config.ts
 - [x] 참여 중단 (체크 기록 유지), 소프트 삭제
 - [x] URL 직접 접근 권한 검증 / 에러·로딩·빈 상태 / 모바일 UI / PWA
 - [x] 관계의 숫자화 금지 (개별 기도 횟수 비노출, 기간 aggregate 만)
+- [x] 홈 "오늘의 말씀" (날마다 바뀌는 구절, 개역한글) + 성경 읽기 습관 체크
+  (하루 1회, 이번 주 일~토 표시, 본인만 보임 — 연속 기록/끊김 경고 없음)
 
 ---
+
+## 오늘의 말씀 데이터
+
+- 본문: **성경전서 개역한글판 (대한성서공회)** — 저작재산권 보호기간 만료(퍼블릭
+  도메인). 개역개정·새번역 등은 저작권이 있어 허가 없이 쓸 수 없습니다.
+- `src/lib/bible/verses.ts` 는 `scripts/bible/gen_verses.py` 가 만든 파일입니다.
+  본문을 손으로 고치지 말고(동일성유지권), 구절을 바꾸려면 스크립트의 `REFS` 를
+  수정해 다시 생성합니다. 스크립트는 holybible.or.kr 정본을 bible.bskorea.or.kr 본과
+  대조해 **두 본문이 일치하는 구절만** 채택합니다.
+
+  ```bash
+  git clone --depth 1 https://github.com/crizin/bible-db /tmp/bible-db
+  python3 scripts/bible/gen_verses.py \
+    /tmp/bible-db/data/krv/krv_holybible.jsonl \
+    /tmp/bible-db/data/krv/krv_bskorea.jsonl \
+    src/lib/bible/verses.ts
+  ```
+- 같은 날에는 모든 사용자에게 같은 구절이 보이고, 날마다 다음 구절로 넘어갑니다
+  (현재 210구절 → 약 7개월 주기).
+- **배포 시** `npm run db:migrate:remote` 로 `0008_bible_reading.sql` 을 적용해야
+  읽기 체크가 나타납니다. 적용 전에는 말씀만 보이고 체크 UI 는 숨겨집니다.
 
 ## Known issues / 향후 과제
 

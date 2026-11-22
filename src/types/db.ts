@@ -72,6 +72,13 @@ export type PrayerUpdateRow = {
   created_at: string;
 };
 
+export type BibleReadingRow = {
+  id: string;
+  user_id: string;
+  read_date: string; // YYYY-MM-DD (서비스 timezone 기준 날짜)
+  created_at: string;
+};
+
 export type PushSubscriptionRow = {
   id: string;
   user_id: string;

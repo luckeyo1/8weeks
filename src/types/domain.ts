@@ -155,3 +155,12 @@ export interface JoinPreview {
   viewerRelation: "GUEST" | "OWNER" | "PARTICIPANT" | "NONE";
   latestUpdate: PrayerUpdateView | null;
 }
+
+/** 홈 "오늘의 말씀" 카드 — 이번 주 성경 읽기 기록 (본인에게만 보임) */
+export interface BibleReadingWeek {
+  /** false 면 기록 기능을 쓸 수 없는 상태(마이그레이션 미적용 등) — 체크 UI 를 숨긴다 */
+  available: boolean;
+  today: string; // YYYY-MM-DD
+  weekDates: string[]; // 이번 주 일~토
+  readDates: string[]; // 이번 주 중 읽은 날
+}
