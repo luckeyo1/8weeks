@@ -16,7 +16,7 @@ export type AnalyticsEvent =
   | "prayer_updated"
   | "prayer_answered"
   | "prayer_closed"
-  | "bible_reading_checked";
+  | "bible_reading_recorded";
 
 type Props = Record<string, string | number | boolean | undefined>;
 

@@ -9,7 +9,8 @@ import {
   DailyVerseCard,
   type DailyVerseView,
 } from "@/features/bible/DailyVerseCard";
-import type { BibleReadingWeek } from "@/types/domain";
+import { chapterKey } from "@/lib/bible/books";
+import type { BibleReadingState } from "@/types/domain";
 
 /**
  * 가입 전 체험용 데모 (P1). 저장 없음 — 로컬 상태로만 동작한다.
@@ -41,14 +42,18 @@ const SAMPLES: SampleCard[] = [
   },
 ];
 
-/** 체험용 성경 읽기 기록: 이번 주 오늘 이전 이틀을 읽은 것으로 보여준다 (저장 없음). */
-function demoReading(today: string): BibleReadingWeek {
+/** 체험용 성경 읽기 기록: 창세기 1~11장을 읽어 온 사람 (저장 없음). */
+const DEMO_READ = Array.from({ length: 11 }, (_, i) => chapterKey(1, i + 1));
+function demoReading(today: string): BibleReadingState {
   const weekDates = weekDatesISO(today);
   return {
     available: true,
     today,
     weekDates,
     readDates: weekDates.filter((d) => d < today).slice(-2),
+    todayKeys: [],
+    readKeys: DEMO_READ,
+    lastRead: DEMO_READ[DEMO_READ.length - 1] ?? null,
   };
 }
 
@@ -57,13 +62,7 @@ function demoReading(today: string): BibleReadingWeek {
 const STATIC_TODAY = "2026-11-24";
 const noopSubscribe = () => () => {};
 
-export function DemoExperience({
-  verse,
-  plan,
-}: {
-  verse: DailyVerseView;
-  plan: string;
-}) {
+export function DemoExperience({ verse }: { verse: DailyVerseView }) {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const checkedCount = Object.values(checked).filter(Boolean).length;
   const today = useSyncExternalStore(
@@ -98,7 +97,6 @@ export function DemoExperience({
         <DailyVerseCard
           key={today}
           verse={verse}
-          plan={plan}
           reading={demoReading(today)}
           demo
         />

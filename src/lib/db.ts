@@ -41,6 +41,16 @@ export async function dbRun(
     .run();
 }
 
+/** 여러 문장을 한 트랜잭션으로 실행 (D1 batch: 전부 성공하거나 전부 취소) */
+export async function dbBatch(
+  statements: { sql: string; params?: unknown[] }[],
+): Promise<void> {
+  const db = await getDB();
+  await db.batch(
+    statements.map((s) => db.prepare(s.sql).bind(...(s.params ?? []))),
+  );
+}
+
 /** COUNT(*) 헬퍼 */
 export async function dbCount(
   sql: string,

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireProfile } from "@/features/auth/service";
 import { getOwnActiveChecklist, getTodaysPrayers } from "@/services/prayers";
-import { getBibleReadingWeek } from "@/services/bible";
+import { getBibleReadingState } from "@/services/bible";
 import { DailyVerseCard } from "@/features/bible/DailyVerseCard";
 import { PrayerCard } from "@/components/PrayerCard";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -13,7 +13,6 @@ import {
   formatVerseRef,
   pickDailyVerse,
 } from "@/lib/bible/daily";
-import { formatReading, todaysReading } from "@/lib/bible/plan";
 import type { ParticipatingPrayer } from "@/types/domain";
 
 export const metadata: Metadata = {
@@ -35,7 +34,7 @@ export default async function HomePage() {
   const [shared, own, reading] = await Promise.all([
     getTodaysPrayers(profile.id), // 공유받아 함께 기도하는 것
     getOwnActiveChecklist(profile.id), // 내가 만든 진행 중 기도
-    getBibleReadingWeek(profile.id, today), // 이번 주 성경 읽기 (본인만)
+    getBibleReadingState(profile.id, today), // 성경 읽은 곳 기록 (본인만)
   ]);
   const verse = pickDailyVerse(today);
 
@@ -66,12 +65,13 @@ export default async function HomePage() {
       </div>
 
       <DailyVerseCard
+        // 저장 후 서버 데이터가 바뀌면 다시 마운트해 로컬 상태를 서버 값으로 맞춘다
+        key={`${reading.todayKeys.join(",")}|${reading.readKeys.length}|${reading.available}`}
         verse={{
           text: verse.text,
           reference: formatVerseRef(verse),
           translation: VERSE_TRANSLATION,
         }}
-        plan={formatReading(todaysReading(today))}
         reading={reading}
       />
 
