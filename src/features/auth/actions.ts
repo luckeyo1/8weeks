@@ -204,6 +204,9 @@ export async function deleteAccount(): Promise<ActionResult> {
     // 3) 개인 기록: 성경 읽기 체크, 알림 구독
     //    (마이그레이션 적용 전이라 테이블이 없을 수도 있어 그 경우만 건너뛴다)
     await deleteOptional("delete from bible_readings where user_id = ?", [uid]);
+    await deleteOptional("delete from bible_chapter_reads where user_id = ?", [
+      uid,
+    ]);
     await deleteOptional("delete from push_subscriptions where user_id = ?", [uid]);
     // 4) 내 기도제목, 세션, 계정 삭제
     await dbRun("delete from prayers where owner_id = ?", [uid]);

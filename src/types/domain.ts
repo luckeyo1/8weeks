@@ -156,11 +156,16 @@ export interface JoinPreview {
   latestUpdate: PrayerUpdateView | null;
 }
 
-/** 홈 "오늘의 말씀" 카드 — 이번 주 성경 읽기 기록 (본인에게만 보임) */
-export interface BibleReadingWeek {
-  /** false 면 기록 기능을 쓸 수 없는 상태(마이그레이션 미적용 등) — 체크 UI 를 숨긴다 */
+/**
+ * 성경 읽은 곳 기록 (본인에게만 보임). 장은 chapterKey(book*1000+chapter) 숫자로 주고받는다.
+ */
+export interface BibleReadingState {
+  /** false 면 기록 기능을 쓸 수 없는 상태(마이그레이션 미적용 등) — 기록 UI 를 숨긴다 */
   available: boolean;
   today: string; // YYYY-MM-DD
   weekDates: string[]; // 이번 주 일~토
   readDates: string[]; // 이번 주 중 읽은 날
+  todayKeys: number[]; // 오늘 읽은 장
+  readKeys: number[]; // 지금까지 한 번이라도 읽은 장 (통독 현황)
+  lastRead: number | null; // 가장 최근에 기록한 장 — 다음 장을 미리 선택하는 데 쓴다
 }
