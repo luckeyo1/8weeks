@@ -1,17 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
+import { safeReturnUrl } from "@/lib/returnUrl";
 import { signUp } from "./actions";
-
-function safeReturn(url: string | null): string {
-  if (url && url.startsWith("/") && !url.startsWith("//")) return url;
-  return "/home";
-}
 
 type FieldErrors = {
   nickname?: string;
@@ -20,10 +16,15 @@ type FieldErrors = {
   general?: string;
 };
 
-export function SignupForm() {
+/**
+ * signedIn: 서버가 본 로그인 여부. 가입 액션이 세션 쿠키를 설정하면 이 페이지가 서버에서
+ * 다시 그려지며 true 가 된다 — 그때는 복구 코드 화면을 지켜야 하므로, "가입 화면에 이미
+ * 로그인한 채로 들어온 경우"에만 returnUrl 로 보낸다(서버 redirect 를 쓰지 않는 이유).
+ */
+export function SignupForm({ signedIn = false }: { signedIn?: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
-  const returnUrl = safeReturn(params.get("returnUrl"));
+  const returnUrl = safeReturnUrl(params.get("returnUrl"));
 
   const [form, setForm] = useState({
     nickname: "",
@@ -34,6 +35,12 @@ export function SignupForm() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [pending, startTransition] = useTransition();
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  const [signingUp, setSigningUp] = useState(false);
+
+  const alreadySignedIn = signedIn && !signingUp && !recoveryCode;
+  useEffect(() => {
+    if (alreadySignedIn) router.replace(returnUrl);
+  }, [alreadySignedIn, returnUrl, router]);
 
   const loginHref = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
 
@@ -62,6 +69,7 @@ export function SignupForm() {
       return;
     }
     setErrors({});
+    setSigningUp(true);
     startTransition(async () => {
       const res = await signUp({
         username: form.username.trim(),
@@ -72,7 +80,10 @@ export function SignupForm() {
       if (res.ok) {
         // 복구 코드를 1회 보여준 뒤 이어서 이동한다.
         setRecoveryCode(res.data.recoveryCode);
-      } else if (res.message.includes("아이디")) {
+        return;
+      }
+      setSigningUp(false);
+      if (res.message.includes("아이디")) {
         setErrors({ username: res.message });
       } else if (res.message.includes("비밀번호")) {
         setErrors({ password: res.message });
@@ -81,6 +92,8 @@ export function SignupForm() {
       }
     });
   }
+
+  if (alreadySignedIn) return null;
 
   if (recoveryCode) {
     return (

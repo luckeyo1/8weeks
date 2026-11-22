@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
 import { QRModal } from "./QRModal";
+import { ShareActions } from "./ShareActions";
 import { DurationPicker } from "./DurationPicker";
 import {
   closePrayer,
@@ -36,7 +37,14 @@ type Sheet =
   | "revoke"
   | "reissue";
 
-export function OwnerPrayerView({ detail }: { detail: OwnerPrayerDetail }) {
+export function OwnerPrayerView({
+  detail,
+  justCreated = false,
+}: {
+  detail: OwnerPrayerDetail;
+  /** 방금 만든 직후(?created=1): 공유 동기가 가장 높은 순간이라 초대를 앞세운다 */
+  justCreated?: boolean;
+}) {
   const router = useRouter();
   const toast = useToast();
   const [qrOpen, setQrOpen] = useState(false);
@@ -70,15 +78,6 @@ export function OwnerPrayerView({ detail }: { detail: OwnerPrayerDetail }) {
     });
   }
 
-  async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(detail.shareUrl);
-      toast.show("링크를 복사했어요.");
-    } catch {
-      toast.show("링크 복사에 실패했어요.", "error");
-    }
-  }
-
   return (
     <div className="flex flex-col gap-5">
       {/* 정보 카드 */}
@@ -103,7 +102,11 @@ export function OwnerPrayerView({ detail }: { detail: OwnerPrayerDetail }) {
           {/* 명세 55: 누가 몇번인지는 노출하지 않고 aggregate 만 */}
           <Row
             label="함께한 기도"
-            value={`이번 기간 동안 ${detail.totalPrayerCount}번의 기도가 함께했어요`}
+            value={
+              detail.totalPrayerCount > 0
+                ? `이번 기간 동안 ${detail.totalPrayerCount}번의 기도가 함께했어요`
+                : "아직 기록이 없어요"
+            }
           />
           {detail.extensionCount > 0 && (
             <Row label="연장" value={`${detail.extensionCount}회`} />
@@ -125,21 +128,30 @@ export function OwnerPrayerView({ detail }: { detail: OwnerPrayerDetail }) {
             </Button>
           </section>
         ) : (
-          <section className="flex flex-col gap-2">
-            {detail.participantCount === 0 && (
-              <p className="rounded-card bg-primary-soft/50 px-4 py-3 text-sm leading-relaxed text-ink-soft">
-                아직 함께하는 사람이 없어요. 기도를 부탁하고 싶은 분에게 QR이나
-                링크로 조용히 전해보세요.
-              </p>
+          <section className="flex flex-col gap-3">
+            {justCreated ? (
+              <div className="rounded-card bg-primary-soft/60 px-4 py-4">
+                <p className="text-[15px] font-semibold text-ink">
+                  🌱 기도제목을 만들었어요
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+                  이제 함께 기도해 줄 분을 초대해 보세요. 한 명이면 충분해요.
+                  초대받은 분만 이 기도제목을 볼 수 있어요.
+                </p>
+              </div>
+            ) : (
+              detail.participantCount === 0 && (
+                <p className="rounded-card bg-primary-soft/50 px-4 py-3 text-sm leading-relaxed text-ink-soft">
+                  아직 함께하는 사람이 없어요. 기도를 부탁하고 싶은 분께 초대
+                  메시지를 보내거나, 만나서 QR을 보여주세요.
+                </p>
+              )
             )}
-            <div className="flex gap-2">
-              <Button className="flex-1" onClick={() => setQrOpen(true)}>
-                QR로 공유하기
-              </Button>
-              <Button variant="secondary" className="flex-1" onClick={copyLink}>
-                링크 복사
-              </Button>
-            </div>
+            <ShareActions
+              shareUrl={detail.shareUrl}
+              daysLeft={detail.daysLeft}
+              onOpenQR={() => setQrOpen(true)}
+            />
             <button
               type="button"
               onClick={() => setSheet("revoke")}
@@ -235,11 +247,15 @@ export function OwnerPrayerView({ detail }: { detail: OwnerPrayerDetail }) {
         </section>
       )}
 
-      {/* 삭제 */}
-      <section className="pt-2">
-        <Button variant="danger" fullWidth onClick={() => setSheet("delete")}>
+      {/* 삭제: 자주 쓰지 않는 위험한 동작이라 조용하게 (확인 시트에서 한 번 더 묻는다) */}
+      <section className="flex justify-center pt-4">
+        <button
+          type="button"
+          onClick={() => setSheet("delete")}
+          className="min-h-[44px] px-3 text-[13px] text-red-600/80 underline-offset-2 transition-colors hover:text-red-600 hover:underline"
+        >
           기도제목 삭제
-        </Button>
+        </button>
       </section>
 
       {/* QR 모달 */}

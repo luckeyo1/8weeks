@@ -22,6 +22,8 @@ const STEPS = [
   },
 ];
 
+const TRUST = ["앱 설치 없이", "이메일 없이 가입", "초대한 사람만 보는 비공개"];
+
 const FEATURES = [
   { title: "사람이 먼저예요", body: "기도제목 개수보다 함께 기도할 사람이 먼저 보여요." },
   { title: "조용하고 부담 없어요", body: "좋아요·팔로워·피드가 없어요. 매일 2번의 탭이면 충분해요." },
@@ -83,6 +85,17 @@ export default async function LandingPage() {
               </>
             )}
           </div>
+          {/* 시작 전 망설임(설치·개인정보·부담)을 줄이는 안심 문구 */}
+          <ul className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[13px] text-ink-soft">
+            {TRUST.map((t) => (
+              <li key={t} className="flex items-center gap-1">
+                <span aria-hidden className="text-primary">
+                  ✓
+                </span>
+                {t}
+              </li>
+            ))}
+          </ul>
         </section>
 
         {/* 히어로 일러스트 */}

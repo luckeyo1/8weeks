@@ -27,10 +27,13 @@ export const dynamic = "force-dynamic";
 
 export default async function PrayerDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const justCreated = sp.created === "1";
   const profile = await requireProfile();
 
   let relation: "OWNER" | "PARTICIPANT" | "NONE";
@@ -76,7 +79,7 @@ export default async function PrayerDetailPage({
       <div>
         <PageHeader title="내 기도제목" backHref="/my-prayers" />
         <div className="pt-2">
-          <OwnerPrayerView detail={ownerDetail} />
+          <OwnerPrayerView detail={ownerDetail} justCreated={justCreated} />
         </div>
       </div>
     );

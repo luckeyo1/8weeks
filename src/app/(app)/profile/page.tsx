@@ -52,6 +52,13 @@ export default async function ProfilePage() {
           <span>기도제목 만들기</span>
           <span aria-hidden className="text-ink-soft">→</span>
         </Link>
+        <Link
+          href="/bible"
+          className="card flex items-center justify-between p-4 text-sm font-medium text-ink hover:border-primary/40"
+        >
+          <span>성경 통독 현황</span>
+          <span aria-hidden className="text-ink-soft">→</span>
+        </Link>
       </div>
 
       {admin && (
