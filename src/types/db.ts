@@ -25,6 +25,7 @@ export type UserRow = {
   profile_image_url: string | null;
   is_admin: number | null; // 1 이면 관리자
   recovery_code_hash: string | null; // 복구 코드 PBKDF2 해시
+  kakao_id: string | null; // 카카오 회원번호 (카카오 로그인/연결 시)
   created_at: string;
   updated_at: string;
 };

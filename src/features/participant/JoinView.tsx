@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import { formatKoreanRange } from "@/lib/date";
 import { track } from "@/lib/analytics";
 import { joinPrayer } from "./actions";
+import { KakaoLoginButton } from "@/features/auth/KakaoLoginButton";
 import type { JoinPreview } from "@/types/domain";
 
 /**
@@ -20,9 +21,12 @@ import type { JoinPreview } from "@/types/domain";
 export function JoinView({
   preview,
   isAuthed,
+  kakaoEnabled = false,
 }: {
   preview: JoinPreview;
   isAuthed: boolean;
+  /** 카카오 로그인이 설정돼 있으면 초대받은 사람에게 가장 빠른 길로 먼저 보여준다 */
+  kakaoEnabled?: boolean;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -195,6 +199,24 @@ export function JoinView({
       );
     }
 
+    // 비로그인 + 카카오: 한 번에 가입/로그인하고 이 화면으로 돌아와 수락한다
+    if (!isAuthed && kakaoEnabled) {
+      return (
+        <>
+          <p className="pb-1 text-center text-sm text-ink-soft">
+            카카오로 바로 시작하고 함께 기도해요
+          </p>
+          <KakaoLoginButton returnUrl={`/join/${preview.shareToken}`} />
+          <Link
+            href={signupHref}
+            className="py-2 text-center text-sm text-ink-soft hover:text-ink"
+          >
+            다른 방법으로 계속하기
+          </Link>
+        </>
+      );
+    }
+
     // 비로그인 → 가입으로 바로 (초대받은 사람 대부분은 처음 온 사람). 로그인은 보조.
     if (!isAuthed) {
       return (
@@ -236,7 +258,7 @@ function Expectation({ icon, text }: { icon: string; text: string }) {
       <span aria-hidden className="w-6 shrink-0 text-center">
         {icon}
       </span>
-      <span>{text}</span>
+      <span className="break-keep">{text}</span>
     </li>
   );
 }

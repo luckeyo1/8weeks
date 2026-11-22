@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { LoginForm } from "@/features/auth/LoginForm";
 import { getAuthUser } from "@/features/auth/service";
 import { InviteBanner, inviterNameFor } from "@/features/auth/invite";
+import { isKakaoEnabled } from "@/features/auth/kakao";
+import { KakaoLoginButton, OrDivider } from "@/features/auth/KakaoLoginButton";
 import { safeReturnUrl } from "@/lib/returnUrl";
 
 export const metadata: Metadata = {
@@ -23,7 +25,14 @@ export default async function LoginPage({
   );
   // 이미 로그인했다면 돌아갈 곳으로 (로그인 직후 재렌더 때도 LoginForm 과 같은 목적지)
   if (user) redirect(returnUrl);
-  const inviterName = await inviterNameFor(returnUrl);
+  const [inviterName, kakao] = await Promise.all([
+    inviterNameFor(returnUrl),
+    isKakaoEnabled(),
+  ]);
+  const kakaoError =
+    typeof sp.error === "string" && sp.error.startsWith("kakao")
+      ? "카카오 로그인을 마치지 못했어요. 잠시 후 다시 시도해 주세요."
+      : null;
 
   return (
     <main
@@ -46,6 +55,20 @@ export default async function LoginPage({
             서로의 기도제목을 기억하고 함께 품어보세요.
           </p>
         </div>
+        {kakaoError && (
+          <p
+            role="alert"
+            className="mb-4 rounded-card bg-red-50 px-4 py-3 text-sm text-red-600"
+          >
+            {kakaoError}
+          </p>
+        )}
+        {kakao && (
+          <>
+            <KakaoLoginButton returnUrl={returnUrl} />
+            <OrDivider label="또는 아이디로 로그인" />
+          </>
+        )}
         <Suspense fallback={<div className="h-40" />}>
           <LoginForm />
         </Suspense>

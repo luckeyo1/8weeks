@@ -29,4 +29,14 @@ interface CloudflareEnv {
 
   /** 일일 리마인더 트리거 보호용 비밀 (스케줄러가 헤더로 전달) */
   CRON_SECRET?: string;
+
+  /** 카카오 로그인: REST API 키 (없으면 카카오 버튼을 숨김) */
+  KAKAO_REST_API_KEY?: string;
+  /** 카카오 로그인: Client Secret (콘솔에서 사용 설정한 경우) */
+  KAKAO_CLIENT_SECRET?: string;
+  /** 카카오: 어드민 키 — 회원 탈퇴 시 연결 끊기(선택, 비밀) */
+  KAKAO_ADMIN_KEY?: string;
+  /** 로컬 테스트 전용: 가짜 카카오 서버 주소 (production 에서는 무시) */
+  KAKAO_AUTH_BASE?: string;
+  KAKAO_API_BASE?: string;
 }

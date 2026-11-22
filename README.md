@@ -27,15 +27,14 @@
 | 스타일 | Tailwind CSS, Pretendard |
 | 호스팅 | **Cloudflare Workers** (OpenNext 어댑터) |
 | DB | **Cloudflare D1** (SQLite) |
-| 인증 | **Google OAuth 2.0 + 서명된 세션 쿠키(HMAC)** — 비밀번호 없음 |
+| 인증 | **아이디/비밀번호(PBKDF2) + 카카오 로그인(OAuth 2.0)**, 서명된 세션 쿠키(HMAC) |
 | 폼/검증 | React Hook Form + Zod (클라이언트 + 서버 이중 검증) |
 | QR | qrcode.react |
 | PWA | manifest + service worker |
 | 테스트 | Vitest(단위) + Playwright(E2E) |
 
 > **참고:** 명세의 매직링크 로그인은 이메일 발송 인프라가 필요해 Cloudflare 단독
-> 구성에서는 제외했습니다. "비밀번호 없는 로그인"은 Google OAuth 로 제공합니다.
-> (매직링크가 필요하면 Resend 등 이메일 서비스를 붙일 수 있습니다 — Known issues 참고)
+> 구성에서는 제외했습니다. "비밀번호 없는 로그인"은 카카오 로그인으로 제공합니다.
 
 ---
 
@@ -44,16 +43,27 @@
 - Node.js 20+ (권장 22)
 - Cloudflare 계정 + [Wrangler](https://developers.cloudflare.com/workers/wrangler/)
   (`npx wrangler`)
-- Google OAuth 클라이언트 (아래 설정 참고)
+- (선택) 카카오 로그인용 Kakao Developers 앱 (아래 설정 참고)
 
-### Google OAuth 설정
+### 카카오 로그인 설정 (선택)
 
-1. [Google Cloud Console](https://console.cloud.google.com/) → **API 및 서비스 →
-   사용자 인증 정보 → OAuth 클라이언트 ID 만들기 → 웹 애플리케이션**
-2. **승인된 리디렉션 URI** 에 추가:
-   - 로컬: `http://localhost:3000/auth/callback`
-   - 배포: `https://<배포도메인>/auth/callback`
-3. 발급된 **클라이언트 ID / 클라이언트 보안 비밀** 을 아래 환경변수로 사용
+키를 등록하지 않으면 카카오 버튼이 숨겨지고 아이디 로그인만 동작합니다.
+
+1. [Kakao Developers](https://developers.kakao.com/) → 내 애플리케이션 → 애플리케이션 추가
+2. **앱 키 → REST API 키** 를 `KAKAO_REST_API_KEY` 로 사용
+3. **플랫폼 → Web** 에 사이트 도메인 등록 (`https://<배포도메인>`, 로컬은 `http://localhost:3000`)
+4. **카카오 로그인 → 활성화 ON**, **Redirect URI** 등록:
+   - 배포: `https://<배포도메인>/auth/kakao/callback`
+   - 로컬: `http://localhost:3000/auth/kakao/callback`
+5. **동의항목 → 닉네임(profile_nickname)** 을 필수 동의로 설정 (이름으로 사용).
+   이메일·프로필 사진 등 다른 항목은 받지 않습니다.
+6. (보안 권장) **Client Secret** 을 "사용함"으로 켰다면 `KAKAO_CLIENT_SECRET` 등록
+7. (선택) 회원 탈퇴 시 카카오 연결 끊기: **앱 키 → 어드민 키** 를 `KAKAO_ADMIN_KEY` 로
+   등록 (서버 비밀키 — 절대 클라이언트에 노출 금지)
+8. D1 에 `migrations/0010_kakao_login.sql` 적용 (`users.kakao_id`)
+
+계정 연결 원칙: 카카오 회원번호로만 계정을 찾습니다(이메일로 자동 병합하지 않음).
+기존 아이디 사용자는 **내 정보 → 카카오 계정 연결하기** 로 직접 연결합니다.
 
 ---
 
@@ -65,8 +75,8 @@ npm install
 # 1) 공개 값 (.env.local)
 cp .env.example .env.local        # NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
-# 2) 서버 비밀키 (.dev.vars) — Google, 세션키
-cp .dev.vars.example .dev.vars    # GOOGLE_CLIENT_ID / SECRET / SESSION_SECRET 채우기
+# 2) 서버 비밀키 (.dev.vars) — 세션키 (+ 선택: 카카오)
+cp .dev.vars.example .dev.vars    # SESSION_SECRET (+ KAKAO_REST_API_KEY 등) 채우기
 
 # 3) 로컬 D1 준비 (SQLite)
 npm run db:migrate:local          # 스키마 적용 (migrations/0001_init.sql)
@@ -112,9 +122,11 @@ npx wrangler d1 create prayer-together-db
 npm run db:migrate:remote
 
 # 3) 비밀키 등록
-npx wrangler secret put GOOGLE_CLIENT_ID
-npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put SESSION_SECRET
+# (선택) 카카오 로그인
+npx wrangler secret put KAKAO_REST_API_KEY
+npx wrangler secret put KAKAO_CLIENT_SECRET   # Client Secret 사용 시
+npx wrangler secret put KAKAO_ADMIN_KEY       # 탈퇴 시 연결 끊기 사용 시
 #   공개 값 NEXT_PUBLIC_SITE_URL 은 wrangler.jsonc 의 "vars" 또는 대시보드에 등록
 
 # 4) 배포
@@ -125,7 +137,7 @@ npm run cf:deploy
 
 - 워커 도메인(`https://<name>.<계정>.workers.dev` 또는 커스텀 도메인)을
   `NEXT_PUBLIC_SITE_URL` 로 설정
-- Google OAuth 승인된 리디렉션 URI 에 `https://<도메인>/auth/callback` 추가
+- (카카오 사용 시) Kakao Developers Redirect URI 에 `https://<도메인>/auth/kakao/callback` 추가
 
 > **대시보드 연동 배포**: Workers & Pages → *Import a repository* → 빌드 명령
 > `npx opennextjs-cloudflare build`, 배포 명령 `npx opennextjs-cloudflare deploy`.
@@ -172,8 +184,8 @@ src/
       prayers/new/  prayers/[id]/
     join/[token]/           #   공유 링크/QR 진입 (공개, noindex)
     login/ onboarding/
-    auth/google/            #   Google 로그인 시작 (state 쿠키 → 동의 화면)
-    auth/callback/          #   code 교환 → 사용자 upsert → 세션 쿠키 발급
+    auth/kakao/             #   카카오 로그인 시작 (state 쿠키 → 동의 화면)
+    auth/kakao/callback/    #   code 교환 → 회원번호로 계정 찾기/만들기(또는 연결) → 세션
     manifest.ts robots.ts
   components/               # 공통 UI
   features/                 # auth / prayer / participant / check / bible
@@ -182,7 +194,7 @@ src/
     cf.ts                   #   Cloudflare 컨텍스트(D1/secret) 접근
     db.ts                   #   D1 얇은 쿼리 헬퍼
     auth/session.ts         #   HMAC 서명 세션 토큰
-    auth/google.ts          #   Google OAuth 헬퍼
+    auth/kakao.ts           #   카카오 OAuth 헬퍼 (URL·토큰·프로필·연결 끊기)
     date.ts token.ts status.ts errors.ts
     bible/                  #   오늘의 말씀(verses.ts, 자동 생성) · 66권/장 도우미(books.ts)
   types/                    # db(Row) / domain(화면용) 타입
@@ -208,7 +220,7 @@ open-next.config.ts
 
 ## 기능 목록 (완료 기준, 명세 98)
 
-- [x] 가입 (Google 로그인, 비밀번호 없음) + 온보딩(닉네임)
+- [x] 가입: 아이디/비밀번호(+복구 코드) 또는 카카오 로그인, 기존 계정에 카카오 연결
 - [x] 기도제목 생성 (제목 50자, 상세 500자, 기간 7/14/30/직접 1~90일)
 - [x] shareToken + QR 생성, 링크 복사
 - [x] 공유 진입 → 비로그인 미리보기 → 로그인 후 원래 링크 복귀(returnUrl)
@@ -255,11 +267,12 @@ open-next.config.ts
 ## Known issues / 향후 과제
 
 - **매직링크 로그인 미포함.** Cloudflare 단독 구성이라 이메일 발송 인프라가 없어
-  Google OAuth 로 대체했습니다. 필요하면 Resend/MailChannels 등을 붙여 매직링크를
-  추가할 수 있습니다(세션 발급 로직은 그대로 재사용 가능).
+  카카오 로그인으로 대체했습니다.
+- **카카오 버튼 심볼**은 디자인 가이드 형태를 따른 SVG 입니다. 공식 리소스(PNG)로
+  바꾸려면 Kakao Developers → 도구 → 리소스 다운로드에서 받아 교체하세요.
+- **이름 변경 미구현.** 카카오 가입자는 카카오 닉네임이 이름으로 쓰입니다.
 - **알림 미구현 (명세 21/58/59).** `prayer_updates` 로 확장 여지는 두었습니다.
-- **프로필 이미지 업로드 미구현.** Google 프로필 사진을 기본 아바타로 사용하며,
-  없으면 닉네임 첫 글자로 대체합니다.
+- **프로필 이미지 업로드 미구현.** 닉네임 첫 글자를 아바타로 씁니다.
 - **"오늘" 기준 timezone.** 서버·클라 동일한 서비스 timezone(기본 Asia/Seoul)으로
   계산합니다. `NEXT_PUBLIC_APP_TIME_ZONE` 로 변경 가능.
 - **종료일 전환**은 조회 시 지연(lazy) 처리합니다. 대량 트래픽에서는 Cron Trigger 로

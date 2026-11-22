@@ -4,6 +4,8 @@ import Link from "next/link";
 import { SignupForm } from "@/features/auth/SignupForm";
 import { getAuthUser } from "@/features/auth/service";
 import { InviteBanner, inviterNameFor } from "@/features/auth/invite";
+import { isKakaoEnabled } from "@/features/auth/kakao";
+import { KakaoLoginButton, OrDivider } from "@/features/auth/KakaoLoginButton";
 import { safeReturnUrl } from "@/lib/returnUrl";
 
 export const metadata: Metadata = {
@@ -22,7 +24,10 @@ export default async function SignupPage({
   const returnUrl = safeReturnUrl(
     typeof sp.returnUrl === "string" ? sp.returnUrl : null,
   );
-  const inviterName = await inviterNameFor(returnUrl);
+  const [inviterName, kakao] = await Promise.all([
+    inviterNameFor(returnUrl),
+    isKakaoEnabled(),
+  ]);
 
   return (
     <main
@@ -56,9 +61,17 @@ export default async function SignupPage({
             )}
           </h1>
           <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">
-            이메일이나 전화번호 없이 이름·아이디·비밀번호만 있으면 돼요.
+            {kakao
+              ? "카카오로 바로 시작하거나, 이메일 없이 아이디로 가입할 수 있어요."
+              : "이메일이나 전화번호 없이 이름·아이디·비밀번호만 있으면 돼요."}
           </p>
         </div>
+        {kakao && (
+          <>
+            <KakaoLoginButton returnUrl={returnUrl} />
+            <OrDivider label="또는 아이디로 가입" />
+          </>
+        )}
         <Suspense fallback={<div className="h-40" />}>
           <SignupForm signedIn={Boolean(user)} />
         </Suspense>
