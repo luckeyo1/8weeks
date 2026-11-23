@@ -12,13 +12,17 @@ export const ANDROID_PACKAGE_NAME = "com.luckeyo.prayertogether";
 /**
  * 앱 서명 인증서 SHA-256 지문.
  * - 업로드 키: 직접 설치(사이드로드)한 테스트 빌드용
- * - Play 앱 서명 키: 플레이스토어에서 받은 앱용 — Play Console → 테스트 및 출시 →
- *   설정 → 앱 서명 → "앱 서명 키 인증서"의 SHA-256 을 여기 추가한다.
+ * - Play 앱 서명 키: 플레이스토어에서 받은 앱용 — Play Console → Google Play로 보호됨
+ *   (앱 무결성) → Play 앱 서명 → "모든 인증서 지문 복사 ▾ → SHA-256" 값을 여기 추가한다.
  *   (코드 수정 없이 Cloudflare 변수 ANDROID_SHA256_FINGERPRINTS 로도 추가 가능)
  */
 export const ANDROID_SHA256_FINGERPRINTS: readonly string[] = [
   // 업로드 키 (upload-keystore.jks, alias: upload)
   "54:5C:C6:BA:7A:EA:BC:29:F7:94:A1:25:29:9E:3E:F0:3E:1B:01:0B:B9:CD:D0:39:1C:DF:F4:A2:71:19:9F:BB",
+  // Play 앱 서명 키 (Play Console → 앱 서명 → "모든 인증서 지문 복사" SHA-256, 2026-11-23)
+  "2F:5E:08:3E:4A:25:CC:B3:94:6F:77:43:F0:1C:F0:16:5A:E7:AB:CF:29:D8:95:FB:31:B9:55:42:99:AD:0E:B8",
+  "7B:55:47:BA:96:98:2E:DB:58:4D:29:88:7D:93:CE:3B:40:1D:A5:5B:44:E1:A1:E7:EC:1F:63:78:A3:F1:D3:50",
+  "31:B5:53:30:81:8F:F0:F2:A5:AD:1F:A9:3B:0F:CA:70:DC:19:0B:C9:63:A5:1B:5B:9A:DD:91:F5:09:C6:B9:B3",
 ];
 
 const FINGERPRINT_RE = /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/;
