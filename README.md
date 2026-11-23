@@ -134,6 +134,14 @@ npm run cf:deploy
 관련 파일: `wrangler.jsonc`, `open-next.config.ts`, `migrations/`, `seed.sql`,
 `.dev.vars.example`.
 
+## 안드로이드 앱 (구글 플레이스토어)
+
+`android/` 에 웹앱을 TWA(Trusted Web Activity)로 감싼 안드로이드 앱이 있습니다.
+화면·기능은 웹 배포만으로 앱에 반영되고, `android/` 를 바꿀 때만 앱을 다시 올립니다.
+빌드는 GitHub Actions(`.github/workflows/android.yml`)가 하고, 앱 인증 파일
+`/.well-known/assetlinks.json` 은 `src/lib/android.ts` 의 서명 지문으로 응답합니다.
+출시 절차는 [`android/README.md`](android/README.md) 를 참고하세요.
+
 ## PWA 확인
 
 - 프로덕션 실행 후 모바일 브라우저에서 "홈 화면에 추가"

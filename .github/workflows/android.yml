@@ -61,7 +61,13 @@ jobs:
           chmod +x gradlew
           TASKS="assembleDebug bundleRelease"
           if [ "$HAS_KEYSTORE" = "true" ]; then TASKS="$TASKS assembleRelease"; fi
-          ./gradlew $TASKS -PversionCode="$VERSION_CODE" --stacktrace
+          # 의존성 서버의 일시적 오류(429 등)에 대비해 최대 3번 시도
+          for attempt in 1 2 3; do
+            if ./gradlew $TASKS -PversionCode="$VERSION_CODE"; then exit 0; fi
+            echo "::warning::빌드 실패 (시도 $attempt/3)"
+            [ "$attempt" -lt 3 ] && sleep $((attempt * 30))
+          done
+          exit 1
 
       - name: 결과 확인 (병합된 매니페스트 / 서명)
         run: |
