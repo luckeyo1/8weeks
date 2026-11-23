@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 앱 이름 (설정 > 앱 목록) -->
+    <string name="appName">기도 동행</string>
+    <!-- 홈 화면 아이콘 아래 이름 -->
+    <string name="launcherName">기도 동행</string>
+</resources>

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  기도 동행 — Trusted Web Activity (TWA)
+  https://8weeks.luckeyo.workers.dev 웹앱을 크롬 엔진으로 전체화면 실행한다.
+  (구조는 Google Bubblewrap 이 생성하는 TWA 템플릿을 따른다)
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 크롬이 없는 기기의 WebView 대체 실행용 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 13+ 알림 권한 (웹 푸시 기도 리마인더를 앱 알림으로 표시) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/appName"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Translucent.NoTitleBar">
+
+        <meta-data
+            android:name="asset_statements"
+            android:resource="@string/assetStatements" />
+
+        <meta-data
+            android:name="web_manifest_url"
+            android:value="@string/webManifestUrl" />
+
+        <activity
+            android:name=".LauncherActivity"
+            android:alwaysRetainTaskState="true"
+            android:exported="true"
+            android:label="@string/launcherName">
+
+            <meta-data
+                android:name="android.support.customtabs.trusted.DEFAULT_URL"
+                android:value="@string/launchUrl" />
+
+            <meta-data
+                android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
+                android:resource="@color/colorPrimary" />
+            <meta-data
+                android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR_DARK"
+                android:resource="@color/colorPrimaryDark" />
+            <meta-data
+                android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR"
+                android:resource="@color/navigationColor" />
+            <meta-data
+                android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR_DARK"
+                android:resource="@color/navigationColorDark" />
+            <!-- "androix" 철자는 android-browser-helper 가 읽는 키 그대로다 (오타 아님) -->
+            <meta-data
+                android:name="androix.browser.trusted.NAVIGATION_BAR_DIVIDER_COLOR"
+                android:resource="@color/navigationDividerColor" />
+            <meta-data
+                android:name="androix.browser.trusted.NAVIGATION_BAR_DIVIDER_COLOR_DARK"
+                android:resource="@color/navigationDividerColorDark" />
+
+            <meta-data
+                android:name="android.support.customtabs.trusted.SPLASH_IMAGE_DRAWABLE"
+                android:resource="@drawable/splash" />
+            <meta-data
+                android:name="android.support.customtabs.trusted.SPLASH_SCREEN_BACKGROUND_COLOR"
+                android:resource="@color/backgroundColor" />
+            <meta-data
+                android:name="android.support.customtabs.trusted.SPLASH_SCREEN_FADE_OUT_DURATION"
+                android:value="300" />
+            <meta-data
+                android:name="android.support.customtabs.trusted.FILE_PROVIDER_AUTHORITY"
+                android:value="@string/providerAuthority" />
+
+            <!-- 크롬(또는 TWA 지원 브라우저)이 없을 때: 커스텀 탭으로 연다 -->
+            <meta-data
+                android:name="android.support.customtabs.trusted.FALLBACK_STRATEGY"
+                android:value="customtabs" />
+            <meta-data
+                android:name="android.support.customtabs.trusted.SCREEN_ORIENTATION"
+                android:value="portrait" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- 공유 링크(/join/...)를 앱에서 바로 연다 (assetlinks.json 검증) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="@string/hostName" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name="com.google.androidbrowserhelper.trusted.FocusActivity" />
+
+        <activity
+            android:name="com.google.androidbrowserhelper.trusted.WebViewFallbackActivity"
+            android:configChanges="orientation|screenSize" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="@string/providerAuthority"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/filepaths" />
+        </provider>
+
+        <!-- 웹 푸시 알림을 앱 알림으로 위임 (Notification Delegation) -->
+        <service
+            android:name=".DelegationService"
+            android:enabled="true"
+            android:exported="true">
+
+            <meta-data
+                android:name="android.support.customtabs.trusted.SMALL_ICON"
+                android:resource="@drawable/ic_notification_icon" />
+
+            <intent-filter>
+                <action android:name="android.support.customtabs.trusted.TRUSTED_WEB_ACTIVITY_SERVICE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

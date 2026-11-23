@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 웹앱 manifest 의 theme_color / background_color 와 맞춘다 (#FAFAF8 오프화이트) -->
+<resources>
+    <color name="colorPrimary">#FAFAF8</color>
+    <color name="colorPrimaryDark">#FAFAF8</color>
+    <color name="navigationColor">#FAFAF8</color>
+    <color name="navigationColorDark">#FAFAF8</color>
+    <color name="navigationDividerColor">#ECEBE6</color>
+    <color name="navigationDividerColorDark">#ECEBE6</color>
+    <color name="backgroundColor">#FAFAF8</color>
+    <!-- 적응형 아이콘 배경 (원본 아이콘 올리브) -->
+    <color name="ic_launcher_background">#6B7C61</color>
+</resources>

@@ -29,4 +29,10 @@ interface CloudflareEnv {
 
   /** 일일 리마인더 트리거 보호용 비밀 (스케줄러가 헤더로 전달) */
   CRON_SECRET?: string;
+
+  /**
+   * 안드로이드 앱 서명 SHA-256 지문 추가분 (콤마 구분, 선택).
+   * src/lib/android.ts 의 지문에 더해 /.well-known/assetlinks.json 에 실린다.
+   */
+  ANDROID_SHA256_FINGERPRINTS?: string;
 }
