@@ -4,6 +4,9 @@ import { getAuthUser } from "@/features/auth/service";
 import { getCfEnv } from "@/lib/cf";
 import { dbFirst, dbRun, newId } from "@/lib/db";
 import { AppError, toActionError, ok, type ActionResult } from "@/lib/errors";
+import { appNowMinutes, appTodayISO } from "@/lib/date";
+import { isValidReminderTime, timeToMinutes } from "@/lib/reminder";
+import { saveReminderTime } from "@/services/reminder";
 
 /** 클라이언트 구독에 필요한 VAPID 공개키 전달 (런타임 env 에서 읽음) */
 export async function getVapidPublicKey(): Promise<ActionResult<{ key: string }>> {
@@ -63,6 +66,24 @@ export async function deletePushSubscription(
       [endpoint, uid],
     );
     return ok(undefined);
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+/** 매일 알림 시간 저장. 이미 지난 시각으로 바꾸면 오늘은 건너뛴다(바로 알림이 가지 않게). */
+export async function setReminderTime(
+  time: string,
+): Promise<ActionResult<{ time: string }>> {
+  try {
+    const uid = await getAuthUser();
+    if (!uid) throw new AppError("UNAUTHENTICATED");
+    if (!isValidReminderTime(time)) throw new AppError("VALIDATION");
+
+    const now = new Date();
+    const passed = timeToMinutes(time) <= appNowMinutes(now);
+    await saveReminderTime(uid, time, passed ? appTodayISO(now) : null);
+    return ok({ time });
   } catch (e) {
     return toActionError(e);
   }

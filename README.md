@@ -91,6 +91,33 @@ npm run dev                       # http://localhost:3000
 
 ---
 
+## 매일 알림 (웹 푸시)
+
+사용자가 **내 정보 → 매일 알림**을 켜고 시간을 고르면(04:00~23:30, 30분 단위, 기본 08:00)
+매일 그 시간에 한 번 알림이 갑니다.
+
+- **스케줄:** `worker.ts` 가 OpenNext 생성 워커를 감싸 `scheduled()` 를 추가하고,
+  `wrangler.jsonc` 의 `triggers.crons`(`*/15 * * * *`, 15분마다)로 실행됩니다. 크론은
+  `/api/push/run` 을 같은 워커 안에서 호출하고, 정한 시각이 지났고(2시간 이내) 오늘 아직
+  안 보낸 사람에게만 보냅니다(`users.reminder_sent_date` 로 하루 한 번).
+- **개인정보:** 푸시 서비스(Google·Apple)에는 데이터 없는 푸시만 보냅니다. 기기의
+  서비스워커가 `/api/push/message` 에서 로그인 세션으로 문구를 직접 받아 띄웁니다
+  (기도할 제목 개수 + 오늘의 말씀, 기도 제목·내용은 넣지 않음).
+- **필요한 설정 (Cloudflare Secrets):**
+
+  ```bash
+  npx web-push generate-vapid-keys        # 공개키/개인키 생성 (로컬에서 한 번)
+  npx wrangler secret put VAPID_PUBLIC_KEY
+  npx wrangler secret put VAPID_PRIVATE_KEY
+  npx wrangler secret put VAPID_SUBJECT     # 예: mailto:운영자@도메인
+  npx wrangler secret put CRON_SECRET       # 임의의 긴 문자열 (openssl rand -hex 24)
+  ```
+- **DB:** `migrations/0011_reminder_time.sql` (`users.reminder_time`, `reminder_sent_date`).
+  적용 전에는 시간 선택이 숨겨지고 크론은 발송하지 않습니다.
+- **로컬 테스트:** `npx wrangler dev --test-scheduled` 후
+  `curl "http://localhost:8787/cdn-cgi/handler/scheduled?cron=*%2F15+*+*+*+*"`.
+  개발 모드에서는 `/api/push/run?now=<ISO 시각>` 으로 시각을 지정할 수 있습니다.
+
 ## 스크립트
 
 | 명령 | 설명 |
@@ -198,7 +225,8 @@ src/
     date.ts token.ts status.ts errors.ts
     bible/                  #   오늘의 말씀(verses.ts, 자동 생성) · 66권/장 도우미(books.ts)
   types/                    # db(Row) / domain(화면용) 타입
-migrations/0001_init.sql    # D1 스키마 (SQLite) — 이후 0002~0008 증분
+worker.ts                   # Workers 진입점: OpenNext 워커 + 크론(매일 알림)
+migrations/0001_init.sql    # D1 스키마 (SQLite) — 이후 0002~0011 증분
 seed.sql                    # 개발용 seed (마이그레이션과 분리)
 wrangler.jsonc              # Workers + D1 바인딩
 open-next.config.ts
@@ -271,7 +299,6 @@ open-next.config.ts
 - **카카오 버튼 심볼**은 디자인 가이드 형태를 따른 SVG 입니다. 공식 리소스(PNG)로
   바꾸려면 Kakao Developers → 도구 → 리소스 다운로드에서 받아 교체하세요.
 - **이름 변경 미구현.** 카카오 가입자는 카카오 닉네임이 이름으로 쓰입니다.
-- **알림 미구현 (명세 21/58/59).** `prayer_updates` 로 확장 여지는 두었습니다.
 - **프로필 이미지 업로드 미구현.** 닉네임 첫 글자를 아바타로 씁니다.
 - **"오늘" 기준 timezone.** 서버·클라 동일한 서비스 timezone(기본 Asia/Seoul)으로
   계산합니다. `NEXT_PUBLIC_APP_TIME_ZONE` 로 변경 가능.

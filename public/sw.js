@@ -3,7 +3,7 @@
  * - 페이지 이동: network-first (인증/동적 데이터 최신 유지), 실패 시 오프라인 안내
  * 민감한 기도 내용은 캐시하지 않도록 navigation 응답은 캐시에 저장하지 않는다.
  */
-const CACHE = "prayer-together-v1";
+const CACHE = "prayer-together-v2";
 const STATIC_ASSETS = ["/offline.html", "/icons/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -63,27 +63,48 @@ self.addEventListener("fetch", (event) => {
  * 민감정보 보호를 위해 "데이터 없는 푸시"를 쓴다 → 고정 문구만 표시.
  * (기도 내용·이름은 알림에 담지 않는다)
  */
-self.addEventListener("push", (event) => {
-  let title = "오늘의 기도";
-  let body = "오늘 함께 기도할 제목이 있어요.";
-  // 혹시 데이터가 실려오면 title/body 만 반영(민감정보는 서버가 담지 않음)
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      if (data && typeof data.title === "string") title = data.title;
-      if (data && typeof data.body === "string") body = data.body;
-    } catch {
-      /* 텍스트/빈 데이터는 무시하고 기본 문구 사용 */
-    }
+// 매일 알림: 푸시 서비스(구글·애플)를 거치는 데이터에는 아무 내용도 싣지 않는다.
+// 알림을 받으면 우리 서버(/api/push/message)에서 로그인 세션으로 문구를 직접 받아온다.
+// 네트워크가 느리거나 실패해도 알림은 반드시 띄운다(4초 제한, 기본 문구).
+async function loadMessage() {
+  const fallback = {
+    title: "기도 동행",
+    body: "오늘의 말씀과 함께 기도할 제목을 확인해 보세요.",
+    url: "/home",
+  };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch("/api/push/message", {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!res.ok) return fallback;
+    const data = await res.json();
+    return {
+      title: typeof data.title === "string" ? data.title : fallback.title,
+      body: typeof data.body === "string" ? data.body : fallback.body,
+      url: typeof data.url === "string" && data.url.startsWith("/") ? data.url : "/home",
+    };
+  } catch {
+    return fallback;
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+self.addEventListener("push", (event) => {
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
-      tag: "daily-reminder",
-      data: { url: "/home" },
-    }),
+    loadMessage().then((msg) =>
+      self.registration.showNotification(msg.title, {
+        body: msg.body,
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        tag: "daily-reminder",
+        data: { url: msg.url },
+      }),
+    ),
   );
 });
 

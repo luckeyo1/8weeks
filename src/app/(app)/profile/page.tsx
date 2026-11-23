@@ -8,6 +8,7 @@ import { SignOutButton } from "@/features/auth/SignOutButton";
 import { DeleteAccountButton } from "@/features/auth/DeleteAccountButton";
 import { PushToggle } from "@/features/push/PushToggle";
 import { getLoginMethods, isKakaoEnabled } from "@/features/auth/kakao";
+import { getReminderTime } from "@/services/reminder";
 import { KakaoSymbol, kakaoStartHref } from "@/features/auth/KakaoLoginButton";
 
 const KAKAO_MESSAGES: Record<string, { text: string; error?: boolean }> = {
@@ -35,10 +36,11 @@ export default async function ProfilePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const profile = await requireProfile();
-  const [admin, kakao, methods, sp] = await Promise.all([
+  const [admin, kakao, methods, reminderTime, sp] = await Promise.all([
     isAdmin(),
     isKakaoEnabled(),
     getLoginMethods(profile.id),
+    getReminderTime(profile.id),
     searchParams,
   ]);
   const kakaoMsg =
@@ -58,7 +60,7 @@ export default async function ProfilePage({
 
       <div className="flex flex-col gap-2">
         <p className="text-xs font-medium text-ink-soft">알림</p>
-        <PushToggle />
+        <PushToggle reminderTime={reminderTime} />
       </div>
 
       {kakao && methods.kakaoLinked !== null && (
