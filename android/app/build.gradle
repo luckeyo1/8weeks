@@ -1,0 +1,100 @@
+plugins {
+    id 'com.android.application'
+}
+
+// ── 웹앱 연결 정보 (TWA) ──────────────────────────────────────────────
+// 도메인을 바꾸면 여기 hostName 과 웹의 assetlinks(src/lib/android.ts)를 함께 바꿔야 한다.
+def twa = [
+    packageId      : 'com.luckeyo.prayertogether',
+    hostName       : '8weeks.luckeyo.workers.dev',
+    launchPath     : '/home',
+    webManifestPath: '/manifest.webmanifest',
+]
+
+// ── 업로드 키 서명 ────────────────────────────────────────────────────
+// 1) 환경변수 (GitHub Actions): ANDROID_KEYSTORE_PATH / ANDROID_KEYSTORE_PASSWORD
+//    / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD
+// 2) 로컬 빌드: android/keystore.properties (git 제외)
+//      storeFile=/절대경로/upload-keystore.jks
+//      storePassword=...
+//      keyAlias=upload
+//      keyPassword=...
+def keystoreProps = new Properties()
+def keystorePropsFile = rootProject.file('keystore.properties')
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def signingValue = { String envKey, String propKey ->
+    def v = System.getenv(envKey)
+    return (v != null && !v.isEmpty()) ? v : keystoreProps.getProperty(propKey)
+}
+def releaseStoreFile = signingValue('ANDROID_KEYSTORE_PATH', 'storeFile')
+def hasReleaseKey = releaseStoreFile != null && rootProject.file(releaseStoreFile).exists()
+
+def resolvedVersionCode = (project.findProperty('versionCode') ?: project.property('appVersionCode')).toString().toInteger()
+
+android {
+    namespace twa.packageId
+    compileSdk 36
+
+    defaultConfig {
+        applicationId twa.packageId
+        minSdk 24
+        targetSdk 36
+        versionCode resolvedVersionCode
+        versionName project.property('appVersionName')
+
+        // 앱이 처리할 도메인 (딥링크 intent-filter, 자산 링크)
+        resValue 'string', 'hostName', twa.hostName
+        // 앱을 열었을 때 처음 띄울 주소
+        resValue 'string', 'launchUrl', "https://${twa.hostName}${twa.launchPath}"
+        resValue 'string', 'webManifestUrl', "https://${twa.hostName}${twa.webManifestPath}"
+        resValue 'string', 'providerAuthority', "${twa.packageId}.fileprovider"
+        resValue 'string', 'assetStatements',
+            '[{ \\"relation\\": [\\"delegate_permission/common.handle_all_urls\\"], ' +
+            '\\"target\\": { \\"namespace\\": \\"web\\", \\"site\\": \\"https://' + twa.hostName + '\\" } }]'
+    }
+
+    signingConfigs {
+        if (hasReleaseKey) {
+            release {
+                storeFile rootProject.file(releaseStoreFile)
+                storePassword signingValue('ANDROID_KEYSTORE_PASSWORD', 'storePassword')
+                keyAlias signingValue('ANDROID_KEY_ALIAS', 'keyAlias')
+                keyPassword signingValue('ANDROID_KEY_PASSWORD', 'keyPassword')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+            if (hasReleaseKey) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        resValues true
+        buildConfig false
+    }
+
+    lint {
+        checkReleaseBuilds false
+    }
+}
+
+if (!hasReleaseKey) {
+    logger.warn('[기도 동행] 업로드 키가 없어 release 빌드는 서명되지 않습니다. (debug 빌드는 정상)')
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.4'
+}
