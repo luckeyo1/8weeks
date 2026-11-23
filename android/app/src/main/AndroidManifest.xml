@@ -15,6 +15,7 @@
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/appName"
+        android:manageSpaceActivity="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Translucent.NoTitleBar">
 
@@ -25,6 +26,25 @@
         <meta-data
             android:name="web_manifest_url"
             android:value="@string/webManifestUrl" />
+
+        <!--
+          사이트 데이터 관리(설정 > 앱 > 저장공간 관리, 홈 아이콘 길게 누르기 > 사이트 설정).
+          android-browser-helper 의 LauncherActivity 가 실행될 때마다 이 컴포넌트를
+          켜고/끄기 때문에 반드시 선언해야 한다. 빠지면 앱이 실행 즉시 종료된다.
+        -->
+        <activity
+            android:name="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
+            android:enabled="true"
+            android:excludeFromRecents="true"
+            android:exported="false">
+            <meta-data
+                android:name="android.support.customtabs.trusted.MANAGE_SPACE_URL"
+                android:value="@string/launchUrl" />
+            <intent-filter>
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".LauncherActivity"
@@ -124,5 +144,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </service>
+
+        <!-- Android 13+ 알림 권한 요청 창 (알림 위임에서 사용, 라이브러리 매니페스트에 없음) -->
+        <activity android:name="com.google.androidbrowserhelper.trusted.NotificationPermissionRequestActivity" />
     </application>
 </manifest>
