@@ -208,6 +208,11 @@ export async function deleteAccount(): Promise<ActionResult> {
       uid,
     ]);
     await deleteOptional("delete from push_subscriptions where user_id = ?", [uid]);
+    // 신고 기록: 내가 한 신고 + 내 기도제목에 접수된 신고
+    await deleteOptional(
+      "delete from prayer_reports where reporter_id = ? or prayer_id in (select id from prayers where owner_id = ?)",
+      [uid, uid],
+    );
     // 4) 내 기도제목, 세션, 계정 삭제
     await dbRun("delete from prayers where owner_id = ?", [uid]);
     await dbRun("delete from sessions where user_id = ?", [uid]);

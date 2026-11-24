@@ -2,10 +2,12 @@ import "server-only";
 
 import { dbAll, dbCount, dbRun } from "@/lib/db";
 import { appTodayISO } from "@/lib/date";
+import { isMissingTableError } from "@/services/bible";
 import type {
   AdminOverview,
   AdminPrayer,
   AdminPrayerParticipant,
+  AdminReport,
   AdminUser,
 } from "@/types/domain";
 import type { PrayerStatus } from "@/types/db";
@@ -142,4 +144,53 @@ export async function getAdminPrayers(): Promise<AdminPrayer[]> {
     checkCount: p.checks,
     participants: byPrayer.get(p.id) ?? [],
   }));
+}
+
+/**
+ * 처리 전(OPEN) 신고 목록. 오래된 것부터.
+ * 신고 테이블(migrations/0010)이 아직 없으면 null — 화면에서 마이그레이션 안내를 보여준다.
+ */
+export async function getAdminReports(): Promise<AdminReport[] | null> {
+  try {
+    const rows = await dbAll<{
+      id: string;
+      prayer_id: string;
+      title: string;
+      description: string | null;
+      owner_name: string | null;
+      owner_username: string | null;
+      reporter_name: string | null;
+      reporter_username: string | null;
+      reason: string;
+      detail: string | null;
+      created_at: string;
+    }>(
+      `select r.id, r.prayer_id, p.title, p.description,
+         o.nickname as owner_name, o.username as owner_username,
+         u.nickname as reporter_name, u.username as reporter_username,
+         r.reason, r.detail, r.created_at
+       from prayer_reports r
+       join prayers p on p.id = r.prayer_id
+       join users o on o.id = p.owner_id
+       join users u on u.id = r.reporter_id
+       where r.status = 'OPEN'
+       order by r.created_at asc`,
+    );
+    return rows.map((r) => ({
+      reportId: r.id,
+      prayerId: r.prayer_id,
+      prayerTitle: r.title,
+      prayerDescription: r.description,
+      ownerName: r.owner_name,
+      ownerUsername: r.owner_username,
+      reporterName: r.reporter_name,
+      reporterUsername: r.reporter_username,
+      reason: r.reason,
+      detail: r.detail,
+      createdAt: r.created_at,
+    }));
+  } catch (e) {
+    if (isMissingTableError(e)) return null;
+    throw e;
+  }
 }

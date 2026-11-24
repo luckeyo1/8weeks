@@ -1,30 +1,48 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cn } from "@/lib/cn";
 import { formatKoreanDate, formatKoreanRange } from "@/lib/date";
-import { adminReissueRecoveryCode } from "./actions";
-import type { AdminOverview, AdminPrayer, AdminUser } from "@/types/domain";
+import { reportReasonLabel } from "@/features/report/schema";
+import {
+  adminHideReportedPrayer,
+  adminReissueRecoveryCode,
+  adminResolveReport,
+} from "./actions";
+import type {
+  AdminOverview,
+  AdminPrayer,
+  AdminReport,
+  AdminUser,
+} from "@/types/domain";
 
-type Tab = "overview" | "users" | "prayers";
+type Tab = "overview" | "reports" | "users" | "prayers";
 
 export function AdminDashboard({
   overview,
   users,
   prayers,
+  reports,
 }: {
   overview: AdminOverview;
   users: AdminUser[];
   prayers: AdminPrayer[];
+  /** null: 신고 테이블(0010) 미적용 */
+  reports: AdminReport[] | null;
 }) {
-  const [tab, setTab] = useState<Tab>("overview");
+  // 처리할 신고가 있으면 신고 탭부터
+  const [tab, setTab] = useState<Tab>(reports && reports.length > 0 ? "reports" : "overview");
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="tablist" className="flex gap-2">
+      <div role="tablist" className="flex flex-wrap gap-2">
         <TabBtn active={tab === "overview"} onClick={() => setTab("overview")}>
           요약
+        </TabBtn>
+        <TabBtn active={tab === "reports"} onClick={() => setTab("reports")}>
+          신고 {reports?.length ?? 0}
         </TabBtn>
         <TabBtn active={tab === "users"} onClick={() => setTab("users")}>
           사용자 {users.length}
@@ -35,6 +53,7 @@ export function AdminDashboard({
       </div>
 
       {tab === "overview" && <Overview overview={overview} />}
+      {tab === "reports" && <Reports reports={reports} />}
       {tab === "users" && <Users users={users} />}
       {tab === "prayers" && <Prayers prayers={prayers} />}
     </div>
@@ -208,6 +227,118 @@ function Prayers({ prayers }: { prayers: AdminPrayer[] }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** 신고 처리: 확인 완료(조치 없음) 또는 기도제목 숨기기 */
+function Reports({ reports }: { reports: AdminReport[] | null }) {
+  if (reports === null) {
+    return (
+      <Empty>
+        신고 기능을 쓰려면 DB 마이그레이션(0010_prayer_reports)을 적용해야 해요.
+      </Empty>
+    );
+  }
+  if (reports.length === 0) return <Empty>처리할 신고가 없어요.</Empty>;
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-ink-soft">
+        신고한 사람은 작성자에게 알리지 않아요. 숨긴 기도제목은 작성자와 함께
+        기도하는 사람 모두에게서 사라져요.
+      </p>
+      {reports.map((r) => (
+        <ReportCard key={r.reportId} report={r} />
+      ))}
+    </div>
+  );
+}
+
+function ReportCard({ report: r }: { report: AdminReport }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [confirmHide, setConfirmHide] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function run(action: () => Promise<{ ok: boolean; message?: string }>) {
+    setError(null);
+    startTransition(async () => {
+      const res = await action();
+      if (res.ok) router.refresh();
+      else setError(res.message ?? "잠시 후 다시 시도해주세요.");
+    });
+  }
+
+  return (
+    <div className="card flex flex-col gap-2 p-4">
+      <div className="flex items-start justify-between gap-2">
+        <span className="rounded-pill bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+          {reportReasonLabel(r.reason)}
+        </span>
+        <span className="text-xs text-ink-soft">{formatKoreanDate(r.createdAt.slice(0, 10))}</span>
+      </div>
+      {r.detail && (
+        <p className="whitespace-pre-wrap rounded-card bg-canvas px-3 py-2 text-sm text-ink">
+          {r.detail}
+        </p>
+      )}
+      <div className="border-t border-line pt-2">
+        <p className="text-xs text-ink-soft">
+          작성자 <span className="font-medium text-ink">{r.ownerName ?? "-"}</span>
+          {r.ownerUsername && <span className="text-ink-soft/70"> ({r.ownerUsername})</span>}
+          {" · "}신고자 <span className="font-medium text-ink">{r.reporterName ?? "-"}</span>
+          {r.reporterUsername && <span className="text-ink-soft/70"> ({r.reporterUsername})</span>}
+        </p>
+        <p className="mt-1 font-semibold leading-snug text-ink">{r.prayerTitle}</p>
+        {r.prayerDescription && (
+          <p className="mt-0.5 whitespace-pre-wrap text-sm text-ink-soft">{r.prayerDescription}</p>
+        )}
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      {confirmHide ? (
+        <div className="flex flex-col gap-2 rounded-card border border-red-200 p-3">
+          <p className="text-sm text-ink">
+            이 기도제목을 숨길까요? 작성자와 함께 기도하는 사람 모두 더 이상 볼 수 없어요.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setConfirmHide(false)}
+              className="min-h-[40px] flex-1 rounded-card border border-line text-sm text-ink-soft"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run(() => adminHideReportedPrayer(r.prayerId))}
+              className="min-h-[40px] flex-1 rounded-card bg-red-600 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {pending ? "처리 중…" : "숨기기"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => run(() => adminResolveReport(r.reportId))}
+            className="min-h-[40px] flex-1 rounded-card border border-line text-sm font-medium text-ink disabled:opacity-50"
+          >
+            문제없음 · 확인 완료
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => setConfirmHide(true)}
+            className="min-h-[40px] flex-1 rounded-card border border-red-200 text-sm font-semibold text-red-600 disabled:opacity-50"
+          >
+            기도제목 숨기기
+          </button>
+        </div>
+      )}
     </div>
   );
 }

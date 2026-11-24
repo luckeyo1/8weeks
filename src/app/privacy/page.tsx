@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LegalPage, LegalSection } from "@/components/LegalPage";
+import { CONTACT_EMAIL, CONTACT_FALLBACK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "개인정보 처리방침",
@@ -8,11 +10,11 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="개인정보 처리방침" updatedAt="2026-11-22">
+    <LegalPage title="개인정보 처리방침" updatedAt="2026-11-24">
       <p>
         기도 동행(이하 &ldquo;서비스&rdquo;)은 함께 기도하는 사람들을 잇기 위한
-        서비스입니다. 아래 방침은 서비스가 어떤 정보를 어떻게 다루는지 설명합니다.
-        정식 출시 전 초안이며, 법적 검토 후 보완될 수 있습니다.
+        서비스입니다. 아래 방침은 웹과 Android 앱(com.luckeyo.prayertogether)에서
+        서비스가 어떤 정보를 어떻게 다루는지 설명합니다.
       </p>
 
       <LegalSection heading="1. 수집하는 정보">
@@ -25,6 +27,10 @@ export default function PrivacyPage() {
           <li>
             알림 정보(선택): 기기에서 알림을 켠 경우, 알림을 보내기 위한 구독
             정보(푸시 엔드포인트·키). 알림을 끄면 즉시 삭제됩니다.
+          </li>
+          <li>
+            신고 정보(선택): 기도제목을 신고한 경우 신고 사유와 적은 내용, 신고
+            대상 기도제목
           </li>
           <li>
             자동 생성 정보: 접속 일시 등 서비스 운영에 필요한 최소한의 기록
@@ -46,6 +52,7 @@ export default function PrivacyPage() {
           <li>매일 기도 체크와 기간 종료·업데이트 안내</li>
           <li>성경 읽은 곳 기록과 통독 현황 표시</li>
           <li>이용자가 켠 경우에 한해, 기도 리마인더 알림 발송</li>
+          <li>부적절한 기도제목 신고 접수와 처리</li>
           <li>서비스 운영·개선 및 오류 대응</li>
         </ul>
         <p>
@@ -73,7 +80,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             운영자 관리 화면은 접근이 제한되며, 운영상 꼭 필요한 최소한의 범위에서만
-            열람합니다.
+            열람합니다. 신고된 기도제목은 신고를 처리하기 위해 운영자가 내용을
+            확인할 수 있습니다. 신고한 사람은 작성자에게 알리지 않습니다.
           </li>
         </ul>
       </LegalSection>
@@ -104,8 +112,17 @@ export default function PrivacyPage() {
           정보는 복구되지 않습니다.
         </p>
         <p>
-          앱을 사용할 수 없는 상황이라면, 아래 연락처로 아이디와 함께 삭제를
-          요청해 주세요. 본인 확인 후 처리해 드립니다.
+          앱을 설치하지 않아도 웹에서 로그인해 같은 방법으로 탈퇴할 수 있습니다.
+          로그인할 수 없는 상황이라면 아래 연락처로 아이디와 함께 삭제를 요청해
+          주세요. 본인 확인 후 처리해 드립니다. 자세한 방법은{" "}
+          <Link href="/account-deletion" className="text-primary underline underline-offset-2">
+            계정 삭제 안내
+          </Link>
+          를 참고해 주세요.
+        </p>
+        <p>
+          장애 복구를 위한 데이터베이스 백업에는 삭제된 정보가 최대 30일까지 남아
+          있을 수 있으며, 그 뒤에는 자동으로 지워집니다.
         </p>
       </LegalSection>
 
@@ -120,10 +137,8 @@ export default function PrivacyPage() {
         <p>
           개인정보 처리와 계정·데이터 삭제에 관한 문의는 아래로 연락해 주세요.
           <br />
-          이메일: <span className="text-ink">[운영자 이메일 입력]</span>
-        </p>
-        <p className="text-[13px] text-ink-soft/80">
-          ※ 정식 출시 전 초안입니다. 운영 주체·연락처는 출시 시 확정해 기재합니다.
+          {CONTACT_EMAIL ? "이메일: " : "연락처: "}
+          <span className="select-all text-ink">{CONTACT_EMAIL ?? CONTACT_FALLBACK}</span>
         </p>
       </LegalSection>
     </LegalPage>

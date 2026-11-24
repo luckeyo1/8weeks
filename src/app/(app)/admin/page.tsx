@@ -4,6 +4,7 @@ import { requireAdmin } from "@/features/admin/guard";
 import {
   getAdminOverview,
   getAdminPrayers,
+  getAdminReports,
   getAdminUsers,
 } from "@/services/admin";
 import { AdminDashboard } from "@/features/admin/AdminDashboard";
@@ -19,10 +20,11 @@ export default async function AdminPage() {
   await requireProfile();
   await requireAdmin(); // 관리자 아니면 404
 
-  const [overview, users, prayers] = await Promise.all([
+  const [overview, users, prayers, reports] = await Promise.all([
     getAdminOverview(),
     getAdminUsers(),
     getAdminPrayers(),
+    getAdminReports(),
   ]);
 
   return (
@@ -33,7 +35,12 @@ export default async function AdminPage() {
           운영 현황과 기도 나눔 관계를 확인해요. 민감정보이니 신중히 다뤄주세요.
         </p>
       </div>
-      <AdminDashboard overview={overview} users={users} prayers={prayers} />
+      <AdminDashboard
+        overview={overview}
+        users={users}
+        prayers={prayers}
+        reports={reports}
+      />
     </div>
   );
 }

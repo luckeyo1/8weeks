@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import { formatDDay, formatKoreanRange, appTodayISO } from "@/lib/date";
 import { checkPrayer, uncheckPrayer } from "@/features/check/actions";
+import { ReportPrayerButton } from "@/features/report/ReportPrayerButton";
 import { leavePrayer } from "./actions";
 import type { ParticipantPrayerDetail } from "@/types/domain";
 
@@ -144,11 +145,12 @@ export function ParticipantPrayerView({
         <ResultCard detail={detail} />
       )}
 
-      {/* 더보기: 함께 기도 그만하기 (명세 34) */}
-      <div className="pt-2">
+      {/* 더보기: 함께 기도 그만하기 (명세 34) + 신고 (플레이 UGC 정책) */}
+      <div className="flex flex-col gap-1 pt-2">
         <Button variant="ghost" fullWidth onClick={() => setLeaveOpen(true)}>
           함께 기도 그만하기
         </Button>
+        <ReportPrayerButton prayerId={detail.prayerId} onLeave={handleLeave} />
       </div>
 
       <Modal
