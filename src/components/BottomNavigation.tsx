@@ -48,6 +48,14 @@ const ITEMS: NavItem[] = [
     icon: <Icon path="M12 5v14M5 12h14" />,
   },
   {
+    href: "/bible",
+    label: "성경",
+    match: (p) => p === "/bible" || p.startsWith("/bible/"),
+    icon: (
+      <Icon path="M4 5.5A1.5 1.5 0 015.5 4H11v15H5.5A1.5 1.5 0 004 20.5zM20 5.5A1.5 1.5 0 0018.5 4H13v15h5.5a1.5 1.5 0 011.5 1.5z" />
+    ),
+  },
+  {
     href: "/profile",
     label: "내 정보",
     match: (p) => p.startsWith("/profile"),

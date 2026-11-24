@@ -22,6 +22,8 @@ export type DailyVerseView = {
   text: string;
   reference: string; // "요한복음 3:16"
   translation: string; // "개역한글"
+  /** 이 구절이 있는 장 읽기 화면 (체험 화면 등에서는 없음) */
+  href?: string;
 };
 
 /**
@@ -200,11 +202,19 @@ function VerseBody({ verse }: { verse: DailyVerseView }) {
             {verse.text}
           </p>
         </blockquote>
-        <figcaption className="mt-2 text-[13px] text-ink-soft">
+        <figcaption className="mt-2 flex flex-wrap items-center gap-x-1 text-[13px] text-ink-soft">
           <cite className="not-italic">{verse.reference}</cite>
           <span aria-hidden> · </span>
           <span className="sr-only">, </span>
           {verse.translation}
+          {verse.href && (
+            <Link
+              href={verse.href}
+              className="ml-auto font-medium text-primary underline-offset-2 hover:underline"
+            >
+              전체 장 읽기 ›
+            </Link>
+          )}
         </figcaption>
       </figure>
     </div>
