@@ -21,8 +21,8 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: Request): Promise<Response> {
   const env = await getCfEnv();
-  const secret = env.CRON_SECRET ?? process.env.CRON_SECRET;
-  const provided = request.headers.get("x-cron-secret");
+  const secret = (env.CRON_SECRET ?? process.env.CRON_SECRET)?.trim();
+  const provided = request.headers.get("x-cron-secret")?.trim();
   if (!secret || provided !== secret) {
     return new NextResponse("Not found", { status: 404 });
   }

@@ -12,7 +12,8 @@ import { saveReminderTime } from "@/services/reminder";
 export async function getVapidPublicKey(): Promise<ActionResult<{ key: string }>> {
   try {
     const env = await getCfEnv();
-    const key = env.VAPID_PUBLIC_KEY ?? process.env.VAPID_PUBLIC_KEY ?? "";
+    // 앞뒤 공백·줄바꿈 제거 (대시보드 붙여 넣기에서 자주 섞인다)
+    const key = (env.VAPID_PUBLIC_KEY ?? process.env.VAPID_PUBLIC_KEY ?? "").trim();
     if (!key) throw new AppError("UNKNOWN", "알림 설정이 아직 준비되지 않았어요.");
     return ok({ key });
   } catch (e) {
