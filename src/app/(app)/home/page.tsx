@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireProfile } from "@/features/auth/service";
-import { getOwnActiveChecklist, getTodaysPrayers } from "@/services/prayers";
+import {
+  getOwnActiveChecklist,
+  getStarterProgress,
+  getTodaysPrayers,
+} from "@/services/prayers";
+import { StarterChecklist } from "@/features/onboarding/StarterChecklist";
 import { getBibleReadingState } from "@/services/bible";
 import { DailyVerseCard } from "@/features/bible/DailyVerseCard";
 import { PrayerCard } from "@/components/PrayerCard";
@@ -38,16 +43,21 @@ function byUnchecked(a: ParticipatingPrayer, b: ParticipatingPrayer) {
 export default async function HomePage() {
   const profile = await requireProfile();
   const today = appTodayISO();
-  const [shared, own, reading] = await Promise.all([
+  const [shared, own, reading, starter] = await Promise.all([
     getTodaysPrayers(profile.id), // 공유받아 함께 기도하는 것
     getOwnActiveChecklist(profile.id), // 내가 만든 진행 중 기도
     getBibleReadingState(profile.id, today), // 성경 읽은 곳 기록 (본인만)
+    getStarterProgress(profile.id), // 시작하기 체크리스트
   ]);
   const verse = pickDailyVerse(today);
 
   const sharedSorted = [...shared].sort(byUnchecked);
   const ownSorted = [...own].sort(byUnchecked);
   const nothing = sharedSorted.length === 0 && ownSorted.length === 0;
+  // 아직 "기도 동행"의 핵심(내 기도에 누군가 함께함)을 경험하지 못했고, 다른 사람 기도에도
+  // 함께하지 않는 사용자에게만 시작하기 체크리스트를 보여준다(다 하면 저절로 사라짐).
+  const showStarter =
+    sharedSorted.length === 0 && !(starter.hasPrayer && starter.hasCompanion);
 
   const remaining =
     sharedSorted.filter((p) => !p.checkedToday).length +
@@ -71,6 +81,8 @@ export default async function HomePage() {
         )}
       </div>
 
+      {showStarter && <StarterChecklist progress={starter} />}
+
       <DailyVerseCard
         // 저장 후 서버 데이터가 바뀌면 다시 마운트해 로컬 상태를 서버 값으로 맞춘다
         key={`${reading.todayKeys.join(",")}|${reading.readKeys.length}|${reading.available}`}
@@ -84,16 +96,18 @@ export default async function HomePage() {
       />
 
       {nothing ? (
-        <EmptyState
-          image="/illust/empty.png"
-          title="아직 함께 기도할 제목이 없어요."
-          description="기도제목을 만들거나, 누군가의 초대를 받아보세요."
-          action={
-            <Link href="/prayers/new">
-              <Button>기도제목 만들기</Button>
-            </Link>
-          }
-        />
+        showStarter ? null : (
+          <EmptyState
+            image="/illust/empty.png"
+            title="아직 함께 기도할 제목이 없어요."
+            description="기도제목을 만들거나, 누군가의 초대를 받아보세요."
+            action={
+              <Link href="/prayers/new">
+                <Button>기도제목 만들기</Button>
+              </Link>
+            }
+          />
+        )
       ) : (
         <>
           {/* 공유받아 함께 기도하는 사람 */}

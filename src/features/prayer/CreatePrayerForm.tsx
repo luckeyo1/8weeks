@@ -77,7 +77,7 @@ export function CreatePrayerForm() {
       });
       if (res.ok) {
         track("prayer_created", { durationDays });
-        router.replace(`/prayers/${res.data.prayerId}`);
+        router.replace(`/prayers/${res.data.prayerId}?created=1`);
         router.refresh();
       } else {
         toast.show(res.message, "error");

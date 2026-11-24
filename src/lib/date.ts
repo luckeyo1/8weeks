@@ -21,6 +21,19 @@ export function appTodayISO(now: Date = new Date()): string {
   return toLocalDateISO(now, APP_TIME_ZONE);
 }
 
+/** 서비스 기준 지금 시각을 자정부터의 분으로 (예: 08:30 → 510) */
+export function appNowMinutes(now: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: APP_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  return h * 60 + m;
+}
+
 /** Date 를 특정 timezone 기준 "YYYY-MM-DD" 문자열로 변환 */
 export function toLocalDateISO(date: Date, timeZone?: string): string {
   // en-CA 로케일은 YYYY-MM-DD 형식을 보장

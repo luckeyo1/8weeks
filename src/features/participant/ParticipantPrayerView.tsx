@@ -135,10 +135,11 @@ export function ParticipantPrayerView({
             </button>
           )}
 
-          {/* streak (명세 20) — 죄책감 없는 담담한 표현 */}
+          {/* streak (명세 20) — 죄책감 없는 담담한 표현. 0일은 숫자 대신 시작을 권한다 */}
           <p className="text-center text-sm text-ink-soft">
-            지난 {detail.recentWindow}일 중 {detail.recentDays}일 함께
-            기도했어요.
+            {detail.recentDays > 0
+              ? `지난 ${detail.recentWindow}일 중 ${detail.recentDays}일 함께 기도했어요.`
+              : `${detail.owner.nickname}님을 위한 첫 기도를 함께해 주세요.`}
           </p>
         </>
       ) : (

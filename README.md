@@ -27,15 +27,14 @@
 | 스타일 | Tailwind CSS, Pretendard |
 | 호스팅 | **Cloudflare Workers** (OpenNext 어댑터) |
 | DB | **Cloudflare D1** (SQLite) |
-| 인증 | **Google OAuth 2.0 + 서명된 세션 쿠키(HMAC)** — 비밀번호 없음 |
+| 인증 | **아이디/비밀번호(PBKDF2) + 카카오 로그인(OAuth 2.0)**, 서명된 세션 쿠키(HMAC) |
 | 폼/검증 | React Hook Form + Zod (클라이언트 + 서버 이중 검증) |
 | QR | qrcode.react |
 | PWA | manifest + service worker |
 | 테스트 | Vitest(단위) + Playwright(E2E) |
 
 > **참고:** 명세의 매직링크 로그인은 이메일 발송 인프라가 필요해 Cloudflare 단독
-> 구성에서는 제외했습니다. "비밀번호 없는 로그인"은 Google OAuth 로 제공합니다.
-> (매직링크가 필요하면 Resend 등 이메일 서비스를 붙일 수 있습니다 — Known issues 참고)
+> 구성에서는 제외했습니다. "비밀번호 없는 로그인"은 카카오 로그인으로 제공합니다.
 
 ---
 
@@ -44,16 +43,27 @@
 - Node.js 20+ (권장 22)
 - Cloudflare 계정 + [Wrangler](https://developers.cloudflare.com/workers/wrangler/)
   (`npx wrangler`)
-- Google OAuth 클라이언트 (아래 설정 참고)
+- (선택) 카카오 로그인용 Kakao Developers 앱 (아래 설정 참고)
 
-### Google OAuth 설정
+### 카카오 로그인 설정 (선택)
 
-1. [Google Cloud Console](https://console.cloud.google.com/) → **API 및 서비스 →
-   사용자 인증 정보 → OAuth 클라이언트 ID 만들기 → 웹 애플리케이션**
-2. **승인된 리디렉션 URI** 에 추가:
-   - 로컬: `http://localhost:3000/auth/callback`
-   - 배포: `https://<배포도메인>/auth/callback`
-3. 발급된 **클라이언트 ID / 클라이언트 보안 비밀** 을 아래 환경변수로 사용
+키를 등록하지 않으면 카카오 버튼이 숨겨지고 아이디 로그인만 동작합니다.
+
+1. [Kakao Developers](https://developers.kakao.com/) → 내 애플리케이션 → 애플리케이션 추가
+2. **앱 키 → REST API 키** 를 `KAKAO_REST_API_KEY` 로 사용
+3. **플랫폼 → Web** 에 사이트 도메인 등록 (`https://<배포도메인>`, 로컬은 `http://localhost:3000`)
+4. **카카오 로그인 → 활성화 ON**, **Redirect URI** 등록:
+   - 배포: `https://<배포도메인>/auth/kakao/callback`
+   - 로컬: `http://localhost:3000/auth/kakao/callback`
+5. **동의항목 → 닉네임(profile_nickname)** 을 필수 동의로 설정 (이름으로 사용).
+   이메일·프로필 사진 등 다른 항목은 받지 않습니다.
+6. (보안 권장) **Client Secret** 을 "사용함"으로 켰다면 `KAKAO_CLIENT_SECRET` 등록
+7. (선택) 회원 탈퇴 시 카카오 연결 끊기: **앱 키 → 어드민 키** 를 `KAKAO_ADMIN_KEY` 로
+   등록 (서버 비밀키 — 절대 클라이언트에 노출 금지)
+8. D1 에 `migrations/0011_kakao_login.sql` 적용 (`users.kakao_id`)
+
+계정 연결 원칙: 카카오 회원번호로만 계정을 찾습니다(이메일로 자동 병합하지 않음).
+기존 아이디 사용자는 **내 정보 → 카카오 계정 연결하기** 로 직접 연결합니다.
 
 ---
 
@@ -65,8 +75,8 @@ npm install
 # 1) 공개 값 (.env.local)
 cp .env.example .env.local        # NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
-# 2) 서버 비밀키 (.dev.vars) — Google, 세션키
-cp .dev.vars.example .dev.vars    # GOOGLE_CLIENT_ID / SECRET / SESSION_SECRET 채우기
+# 2) 서버 비밀키 (.dev.vars) — 세션키 (+ 선택: 카카오)
+cp .dev.vars.example .dev.vars    # SESSION_SECRET (+ KAKAO_REST_API_KEY 등) 채우기
 
 # 3) 로컬 D1 준비 (SQLite)
 npm run db:migrate:local          # 스키마 적용 (migrations/0001_init.sql)
@@ -80,6 +90,33 @@ npm run dev                       # http://localhost:3000
 `.dev.vars` 를 주입합니다.
 
 ---
+
+## 매일 알림 (웹 푸시)
+
+사용자가 **내 정보 → 매일 알림**을 켜고 시간을 고르면(04:00~23:30, 30분 단위, 기본 08:00)
+매일 그 시간에 한 번 알림이 갑니다.
+
+- **스케줄:** `worker.ts` 가 OpenNext 생성 워커를 감싸 `scheduled()` 를 추가하고,
+  `wrangler.jsonc` 의 `triggers.crons`(`*/15 * * * *`, 15분마다)로 실행됩니다. 크론은
+  `/api/push/run` 을 같은 워커 안에서 호출하고, 정한 시각이 지났고(2시간 이내) 오늘 아직
+  안 보낸 사람에게만 보냅니다(`users.reminder_sent_date` 로 하루 한 번).
+- **개인정보:** 푸시 서비스(Google·Apple)에는 데이터 없는 푸시만 보냅니다. 기기의
+  서비스워커가 `/api/push/message` 에서 로그인 세션으로 문구를 직접 받아 띄웁니다
+  (기도할 제목 개수 + 오늘의 말씀, 기도 제목·내용은 넣지 않음).
+- **필요한 설정 (Cloudflare Secrets):**
+
+  ```bash
+  npx web-push generate-vapid-keys        # 공개키/개인키 생성 (로컬에서 한 번)
+  npx wrangler secret put VAPID_PUBLIC_KEY
+  npx wrangler secret put VAPID_PRIVATE_KEY
+  npx wrangler secret put VAPID_SUBJECT     # 예: mailto:운영자@도메인
+  npx wrangler secret put CRON_SECRET       # 임의의 긴 문자열 (openssl rand -hex 24)
+  ```
+- **DB:** `migrations/0012_reminder_time.sql` (`users.reminder_time`, `reminder_sent_date`).
+  적용 전에는 시간 선택이 숨겨지고 크론은 발송하지 않습니다.
+- **로컬 테스트:** `npx wrangler dev --test-scheduled` 후
+  `curl "http://localhost:8787/cdn-cgi/handler/scheduled?cron=*%2F15+*+*+*+*"`.
+  개발 모드에서는 `/api/push/run?now=<ISO 시각>` 으로 시각을 지정할 수 있습니다.
 
 ## 스크립트
 
@@ -112,9 +149,11 @@ npx wrangler d1 create prayer-together-db
 npm run db:migrate:remote
 
 # 3) 비밀키 등록
-npx wrangler secret put GOOGLE_CLIENT_ID
-npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put SESSION_SECRET
+# (선택) 카카오 로그인
+npx wrangler secret put KAKAO_REST_API_KEY
+npx wrangler secret put KAKAO_CLIENT_SECRET   # Client Secret 사용 시
+npx wrangler secret put KAKAO_ADMIN_KEY       # 탈퇴 시 연결 끊기 사용 시
 #   공개 값 NEXT_PUBLIC_SITE_URL 은 wrangler.jsonc 의 "vars" 또는 대시보드에 등록
 
 # 4) 배포
@@ -125,7 +164,7 @@ npm run cf:deploy
 
 - 워커 도메인(`https://<name>.<계정>.workers.dev` 또는 커스텀 도메인)을
   `NEXT_PUBLIC_SITE_URL` 로 설정
-- Google OAuth 승인된 리디렉션 URI 에 `https://<도메인>/auth/callback` 추가
+- (카카오 사용 시) Kakao Developers Redirect URI 에 `https://<도메인>/auth/kakao/callback` 추가
 
 > **대시보드 연동 배포**: Workers & Pages → *Import a repository* → 빌드 명령
 > `npx opennextjs-cloudflare build`, 배포 명령 `npx opennextjs-cloudflare deploy`.
@@ -180,8 +219,8 @@ src/
       prayers/new/  prayers/[id]/
     join/[token]/           #   공유 링크/QR 진입 (공개, noindex)
     login/ onboarding/
-    auth/google/            #   Google 로그인 시작 (state 쿠키 → 동의 화면)
-    auth/callback/          #   code 교환 → 사용자 upsert → 세션 쿠키 발급
+    auth/kakao/             #   카카오 로그인 시작 (state 쿠키 → 동의 화면)
+    auth/kakao/callback/    #   code 교환 → 회원번호로 계정 찾기/만들기(또는 연결) → 세션
     manifest.ts robots.ts
   components/               # 공통 UI
   features/                 # auth / prayer / participant / check / bible
@@ -190,11 +229,12 @@ src/
     cf.ts                   #   Cloudflare 컨텍스트(D1/secret) 접근
     db.ts                   #   D1 얇은 쿼리 헬퍼
     auth/session.ts         #   HMAC 서명 세션 토큰
-    auth/google.ts          #   Google OAuth 헬퍼
+    auth/kakao.ts           #   카카오 OAuth 헬퍼 (URL·토큰·프로필·연결 끊기)
     date.ts token.ts status.ts errors.ts
     bible/                  #   오늘의 말씀(verses.ts, 자동 생성) · 66권/장 도우미(books.ts)
   types/                    # db(Row) / domain(화면용) 타입
-migrations/0001_init.sql    # D1 스키마 (SQLite) — 이후 0002~0008 증분
+worker.ts                   # Workers 진입점: OpenNext 워커 + 크론(매일 알림)
+migrations/0001_init.sql    # D1 스키마 (SQLite) — 이후 0002~0012 증분
 seed.sql                    # 개발용 seed (마이그레이션과 분리)
 wrangler.jsonc              # Workers + D1 바인딩
 open-next.config.ts
@@ -216,7 +256,7 @@ open-next.config.ts
 
 ## 기능 목록 (완료 기준, 명세 98)
 
-- [x] 가입 (Google 로그인, 비밀번호 없음) + 온보딩(닉네임)
+- [x] 가입: 아이디/비밀번호(+복구 코드) 또는 카카오 로그인, 기존 계정에 카카오 연결
 - [x] 기도제목 생성 (제목 50자, 상세 500자, 기간 7/14/30/직접 1~90일)
 - [x] shareToken + QR 생성, 링크 복사
 - [x] 공유 진입 → 비로그인 미리보기 → 로그인 후 원래 링크 복귀(returnUrl)
@@ -230,6 +270,9 @@ open-next.config.ts
 - [x] 홈 "오늘의 말씀" (날마다 바뀌는 구절, 개역한글) + 성경 읽기 습관 체크
   (하루 1회, 이번 주 일~토 표시, 본인만 보임 — 연속 기록/끊김 경고 없음)
 - [x] 성경 읽은 곳 기록 (책·장 선택, 지난번 다음 장 미리 선택) + 통독 현황 페이지(`/bible`)
+- [x] 초대 흐름: 초대 페이지(누가·무엇을·비공개 안내) → 가입(초대 배너) → 초대 페이지로 복귀
+- [x] 공유: 기기 공유 시트(카카오톡 등) / 초대 메시지 복사 / QR, 만든 직후 초대 안내
+- [x] 홈 "시작하기" 체크리스트(가입 → 첫 기도제목 → 초대), 내 기도에 함께하는 사람 표시
 - [x] 성경 탭 · 성경 읽기 (개역한글 66권 전체, 장 단위 읽기 화면, 글자 크기, 이전/다음 장,
   "이 장 다 읽었어요" → 읽은 곳 기록에 반영, 이어 읽기, 오늘의 말씀 → 해당 절로 이동,
   한 번 읽은 장은 오프라인에서도 열림)
@@ -276,11 +319,11 @@ open-next.config.ts
 ## Known issues / 향후 과제
 
 - **매직링크 로그인 미포함.** Cloudflare 단독 구성이라 이메일 발송 인프라가 없어
-  Google OAuth 로 대체했습니다. 필요하면 Resend/MailChannels 등을 붙여 매직링크를
-  추가할 수 있습니다(세션 발급 로직은 그대로 재사용 가능).
-- **알림 미구현 (명세 21/58/59).** `prayer_updates` 로 확장 여지는 두었습니다.
-- **프로필 이미지 업로드 미구현.** Google 프로필 사진을 기본 아바타로 사용하며,
-  없으면 닉네임 첫 글자로 대체합니다.
+  카카오 로그인으로 대체했습니다.
+- **카카오 버튼 심볼**은 디자인 가이드 형태를 따른 SVG 입니다. 공식 리소스(PNG)로
+  바꾸려면 Kakao Developers → 도구 → 리소스 다운로드에서 받아 교체하세요.
+- **이름 변경 미구현.** 카카오 가입자는 카카오 닉네임이 이름으로 쓰입니다.
+- **프로필 이미지 업로드 미구현.** 닉네임 첫 글자를 아바타로 씁니다.
 - **"오늘" 기준 timezone.** 서버·클라 동일한 서비스 timezone(기본 Asia/Seoul)으로
   계산합니다. `NEXT_PUBLIC_APP_TIME_ZONE` 로 변경 가능.
 - **종료일 전환**은 조회 시 지연(lazy) 처리합니다. 대량 트래픽에서는 Cron Trigger 로

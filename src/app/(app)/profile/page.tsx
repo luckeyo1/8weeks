@@ -7,6 +7,21 @@ import { Button } from "@/components/ui/Button";
 import { SignOutButton } from "@/features/auth/SignOutButton";
 import { DeleteAccountButton } from "@/features/auth/DeleteAccountButton";
 import { PushToggle } from "@/features/push/PushToggle";
+import { getLoginMethods, isKakaoEnabled } from "@/features/auth/kakao";
+import { getReminderTime } from "@/services/reminder";
+import { KakaoSymbol, kakaoStartHref } from "@/features/auth/KakaoLoginButton";
+
+const KAKAO_MESSAGES: Record<string, { text: string; error?: boolean }> = {
+  linked: { text: "카카오 계정을 연결했어요. 다음부터 카카오로 로그인할 수 있어요." },
+  taken: {
+    text: "이 카카오 계정은 이미 다른 기도 동행 계정에 연결돼 있어요.",
+    error: true,
+  },
+  error: {
+    text: "카카오 연결을 마치지 못했어요. 잠시 후 다시 시도해 주세요.",
+    error: true,
+  },
+};
 
 export const metadata: Metadata = {
   title: "내 정보",
@@ -15,9 +30,21 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const profile = await requireProfile();
-  const admin = await isAdmin();
+  const [admin, kakao, methods, reminderTime, sp] = await Promise.all([
+    isAdmin(),
+    isKakaoEnabled(),
+    getLoginMethods(profile.id),
+    getReminderTime(profile.id),
+    searchParams,
+  ]);
+  const kakaoMsg =
+    typeof sp.kakao === "string" ? KAKAO_MESSAGES[sp.kakao] : undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -33,8 +60,61 @@ export default async function ProfilePage() {
 
       <div className="flex flex-col gap-2">
         <p className="text-xs font-medium text-ink-soft">알림</p>
-        <PushToggle />
+        <PushToggle reminderTime={reminderTime} />
       </div>
+
+      {kakao && methods.kakaoLinked !== null && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-ink-soft">로그인</p>
+          {kakaoMsg && (
+            <p
+              role="status"
+              className={
+                kakaoMsg.error
+                  ? "rounded-card bg-red-50 px-4 py-3 text-sm text-red-600"
+                  : "rounded-card bg-primary-soft px-4 py-3 text-sm text-primary"
+              }
+            >
+              {kakaoMsg.text}
+            </p>
+          )}
+          {methods.kakaoLinked ? (
+            <div className="card flex items-center gap-3 p-4">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FEE500]">
+                <KakaoSymbol className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-ink">카카오 계정 연결됨</p>
+                <p className="text-[13px] text-ink-soft">
+                  카카오로 바로 로그인할 수 있어요.
+                </p>
+              </div>
+              <span aria-hidden className="text-primary">
+                ✓
+              </span>
+            </div>
+          ) : (
+            // OAuth 시작 라우트라 Link(프리페치) 대신 a
+            <a
+              href={kakaoStartHref("/profile", "link")}
+              className="card flex items-center gap-3 p-4 hover:border-primary/40"
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FEE500]">
+                <KakaoSymbol className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-ink">카카오 계정 연결하기</p>
+                <p className="text-[13px] text-ink-soft">
+                  연결하면 다음부터 아이디 없이 카카오로 로그인할 수 있어요.
+                </p>
+              </div>
+              <span aria-hidden className="text-ink-soft">
+                →
+              </span>
+            </a>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <p className="text-xs font-medium text-ink-soft">메뉴</p>
@@ -50,6 +130,13 @@ export default async function ProfilePage() {
           className="card flex items-center justify-between p-4 text-sm font-medium text-ink hover:border-primary/40"
         >
           <span>기도제목 만들기</span>
+          <span aria-hidden className="text-ink-soft">→</span>
+        </Link>
+        <Link
+          href="/bible"
+          className="card flex items-center justify-between p-4 text-sm font-medium text-ink hover:border-primary/40"
+        >
+          <span>성경 통독 현황</span>
           <span aria-hidden className="text-ink-soft">→</span>
         </Link>
       </div>

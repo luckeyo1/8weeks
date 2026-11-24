@@ -8,6 +8,7 @@ import { AppError } from "@/lib/errors";
 import type {
   JoinPreview,
   OwnedPrayerSummary,
+  StarterProgress,
   OwnerPrayerDetail,
   ParticipantPrayerDetail,
   ParticipatingPrayer,
@@ -158,6 +159,22 @@ export async function getOwnActiveChecklist(
   );
   const checkedSet = new Set(checks.map((c) => c.prayer_id));
 
+  // 함께 기도하는 사람 이름 (작성자 본인은 상세 화면에서도 명단을 보므로 같은 범위)
+  const companionRows = await dbAll<{ prayer_id: string; nickname: string | null }>(
+    `select pp.prayer_id, u.nickname from prayer_participants pp
+       join users u on u.id = pp.user_id
+      where pp.prayer_id in (${placeholders(ids.length)})
+        and pp.status != 'LEFT' and pp.removed = 0
+      order by pp.joined_at asc`,
+    ids,
+  );
+  const companions = new Map<string, string[]>();
+  for (const r of companionRows) {
+    const list = companions.get(r.prayer_id) ?? [];
+    list.push(r.nickname ?? "이름 없음");
+    companions.set(r.prayer_id, list);
+  }
+
   const profiles = await fetchProfiles([userId]);
   const me = ownerProfile(profiles.get(userId));
 
@@ -174,8 +191,33 @@ export async function getOwnActiveChecklist(
       checkedToday: checkedSet.has(p.id),
       participantId: "",
       participantStatus: "ACTIVE",
+      companions: companions.get(p.id) ?? [],
     }))
     .sort((a, b) => a.daysLeft - b.daysLeft);
+}
+
+/** 홈 "시작하기" 체크리스트: 첫 기도제목 / 첫 동행 초대 여부 */
+export async function getStarterProgress(
+  userId: string,
+): Promise<StarterProgress> {
+  const row = await dbFirst<{
+    owned: number;
+    invited: number | null;
+    latest: string | null;
+  }>(
+    `select count(*) as owned,
+            sum(exists(select 1 from prayer_participants pp where pp.prayer_id = p.id)) as invited,
+            (select id from prayers where owner_id = ? and status = 'ACTIVE'
+              order by created_at desc limit 1) as latest
+       from prayers p
+      where p.owner_id = ? and p.status != 'DELETED'`,
+    [userId, userId],
+  );
+  return {
+    hasPrayer: (row?.owned ?? 0) > 0,
+    hasCompanion: (row?.invited ?? 0) > 0,
+    invitePrayerId: row?.latest ?? null,
+  };
 }
 
 /** 내가 작성한 기도제목 목록 */

@@ -11,6 +11,52 @@ import { track } from "@/lib/analytics";
 import { checkPrayer, uncheckPrayer } from "@/features/check/actions";
 import type { ParticipatingPrayer } from "@/types/domain";
 
+/**
+ * 내 기도에 함께 기도하는 사람 — "나를 위해 기도하는 사람이 있다"는 걸 보여준다.
+ * 누가 몇 번 기도했는지는 보여주지 않는다(관계의 숫자화 금지). 아직 없으면 조용히 초대를 권한다.
+ */
+function Companions({
+  names,
+  prayerHref,
+}: {
+  names: string[];
+  prayerHref: string;
+}) {
+  if (names.length === 0) {
+    return (
+      <Link
+        href={prayerHref}
+        className="-my-1 flex min-h-[36px] items-center text-[13px] text-ink-soft hover:text-ink"
+      >
+        아직 함께하는 사람이 없어요 ·{" "}
+        <span className="ml-1 font-medium text-primary">초대하기 ›</span>
+      </Link>
+    );
+  }
+  const [first, second] = names;
+  const text =
+    names.length === 1
+      ? `${first}님이 함께 기도하고 있어요`
+      : names.length === 2
+        ? `${first}님, ${second}님이 함께 기도하고 있어요`
+        : `${first}님 외 ${names.length - 1}명이 함께 기도하고 있어요`;
+  return (
+    <div className="flex items-center gap-2">
+      <span aria-hidden className="flex -space-x-1.5">
+        {names.slice(0, 3).map((n, i) => (
+          <span
+            key={`${n}-${i}`}
+            className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface bg-primary-soft text-[11px] font-semibold text-primary"
+          >
+            {n.trim().charAt(0) || "?"}
+          </span>
+        ))}
+      </span>
+      <p className="text-[13px] text-ink-soft">{text}</p>
+    </div>
+  );
+}
+
 /** 홈 "오늘의 기도" 카드 (명세 7/52/53). own=true 면 내가 만든 기도. */
 export function PrayerCard({
   prayer,
@@ -92,6 +138,13 @@ export function PrayerCard({
           </p>
         )}
       </Link>
+
+      {own && prayer.companions && (
+        <Companions
+          names={prayer.companions}
+          prayerHref={`/prayers/${prayer.prayerId}`}
+        />
+      )}
 
       <button
         type="button"

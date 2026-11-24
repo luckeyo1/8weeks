@@ -6,17 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
+import { safeReturnUrl } from "@/lib/returnUrl";
 import { signIn } from "./actions";
-
-function safeReturn(url: string | null): string {
-  if (url && url.startsWith("/") && !url.startsWith("//")) return url;
-  return "/home";
-}
 
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const returnUrl = safeReturn(params.get("returnUrl"));
+  const returnUrl = safeReturnUrl(params.get("returnUrl"));
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");

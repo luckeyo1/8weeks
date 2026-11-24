@@ -38,6 +38,7 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
+    "worker.ts",
     "node_modules",
     "tests/e2e"
   ]

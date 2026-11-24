@@ -13,6 +13,8 @@ import { getCfEnv } from "@/lib/cf";
 import { dbFirst, dbRun, newId } from "@/lib/db";
 import { publicEnv } from "@/lib/env";
 import { isMissingTableError } from "@/services/bible";
+import { getKakaoConfig } from "./kakao";
+import { unlinkKakaoUser } from "@/lib/auth/kakao";
 import { AppError, toActionError, ok, type ActionResult } from "@/lib/errors";
 import { recoverSchema, signInSchema, signUpSchema } from "./schema";
 import type { UserRow } from "@/types/db";
@@ -185,6 +187,20 @@ export async function deleteAccount(): Promise<ActionResult> {
     const uid = await verifySessionToken(token, await sessionSecret());
     if (!uid) throw new AppError("UNAUTHENTICATED");
 
+    // 0) 카카오 회원번호 (탈퇴 후 카카오 연결 끊기용). 마이그레이션 전이면 컬럼이 없을 수 있다.
+    let kakaoId: string | null = null;
+    try {
+      kakaoId =
+        (
+          await dbFirst<{ kakao_id: string | null }>(
+            "select kakao_id from users where id = ?",
+            [uid],
+          )
+        )?.kakao_id ?? null;
+    } catch {
+      kakaoId = null;
+    }
+
     // 1) 내가 만든 기도제목에 달린 자식 행 정리
     await dbRun(
       "delete from prayer_checks where prayer_id in (select id from prayers where owner_id = ?)",
@@ -219,6 +235,12 @@ export async function deleteAccount(): Promise<ActionResult> {
     await dbRun("delete from users where id = ?", [uid]);
 
     store.delete(SESSION_COOKIE);
+
+    // 5) 카카오 연결 끊기 (어드민 키가 설정된 경우만, 실패해도 탈퇴는 완료)
+    if (kakaoId) {
+      const cfg = await getKakaoConfig().catch(() => null);
+      if (cfg) await unlinkKakaoUser(cfg, kakaoId);
+    }
     return ok(undefined);
   } catch (e) {
     return toActionError(e);

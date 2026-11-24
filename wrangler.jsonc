@@ -3,7 +3,8 @@
   // https://opennext.js.org/cloudflare
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "8weeks",
-  "main": ".open-next/worker.js",
+  // OpenNext 생성 워커 + 크론(scheduled)을 붙인 진입점 (worker.ts 참고)
+  "main": "worker.ts",
   "compatibility_date": "2025-03-25",
   // Next.js 서버 실행에 Node 호환 필요
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -13,6 +14,10 @@
   },
   "observability": {
     "enabled": true
+  },
+  // 매일 알림: 15분마다 "정한 시각이 된 사람"에게 보낸다 (UTC 기준 실행, 시간 판단은 앱이 KST 로)
+  "triggers": {
+    "crons": ["*/15 * * * *"]
   },
   // Cloudflare D1 (SQLite) 데이터베이스 바인딩.
   // `wrangler d1 create prayer-together-db` 실행 후 나오는 database_id 로 교체하세요.

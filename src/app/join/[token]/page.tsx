@@ -4,6 +4,7 @@ import { getAuthUser } from "@/features/auth/service";
 import { getJoinPreview } from "@/services/prayers";
 import { isValidShareTokenFormat } from "@/lib/token";
 import { AppError } from "@/lib/errors";
+import { isKakaoEnabled } from "@/features/auth/kakao";
 import { JoinView } from "@/features/participant/JoinView";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -34,7 +35,7 @@ export default async function JoinPage({
     return <JoinError message="유효하지 않은 기도 초대예요." />;
   }
 
-  const user = await getAuthUser();
+  const [user, kakao] = await Promise.all([getAuthUser(), isKakaoEnabled()]);
 
   // 데이터 조회만 try 안에서 하고, 화면은 밖에서 그린다 (react-hooks/error-boundaries)
   let preview: JoinPreview | null = null;
@@ -49,7 +50,11 @@ export default async function JoinPage({
 
   return (
     <main className="app-shell">
-      <JoinView preview={preview} isAuthed={Boolean(user)} />
+      <JoinView
+        preview={preview}
+        isAuthed={Boolean(user)}
+        kakaoEnabled={kakao}
+      />
     </main>
   );
 }

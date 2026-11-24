@@ -22,12 +22,15 @@ export async function sendPush(
       headers: {
         Authorization: auth,
         TTL: String(ttlSeconds),
-        "Content-Length": "0",
       },
+      // 빈 본문: fetch 가 Content-Length: 0 을 붙인다.
+      // (Content-Length 를 직접 지정하면 fetch 가 요청을 거부해 발송이 전부 실패했었다)
+      body: new Uint8Array(0),
     });
     if (res.ok) return { ok: true };
     return { ok: false, gone: res.status === 404 || res.status === 410, status: res.status };
-  } catch {
+  } catch (e) {
+    console.error("[push] send failed:", e instanceof Error ? e.message : e);
     return { ok: false, gone: false, status: 0 };
   }
 }

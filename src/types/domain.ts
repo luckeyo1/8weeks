@@ -31,6 +31,15 @@ export interface ParticipatingPrayer {
   checkedToday: boolean;
   participantId: string;
   participantStatus: ParticipantStatus;
+  /** 내가 만든 기도에서만: 함께 기도하는 사람 이름(참여 순). 사람이 먼저 보이게(원칙) */
+  companions?: string[];
+}
+
+/** 홈 "시작하기" 체크리스트 진행 (기존 데이터에서 계산) */
+export interface StarterProgress {
+  hasPrayer: boolean; // 기도제목을 한 번이라도 만들었는지
+  hasCompanion: boolean; // 내 기도에 한 명이라도 함께한 적이 있는지
+  invitePrayerId: string | null; // 초대 단계에서 열어 줄 진행 중인 기도
 }
 
 /** 내가 작성한 기도제목 목록용 */
