@@ -7,6 +7,7 @@ import { AppError, toActionError, ok, type ActionResult } from "@/lib/errors";
 import { appNowMinutes, appTodayISO } from "@/lib/date";
 import { isValidReminderTime, timeToMinutes } from "@/lib/reminder";
 import { saveReminderTime } from "@/services/reminder";
+import { decodeB64url } from "@/lib/push/inspect";
 
 /** 클라이언트 구독에 필요한 VAPID 공개키 전달 (런타임 env 에서 읽음) */
 export async function getVapidPublicKey(): Promise<ActionResult<{ key: string }>> {
@@ -15,6 +16,13 @@ export async function getVapidPublicKey(): Promise<ActionResult<{ key: string }>
     // 앞뒤 공백·줄바꿈 제거 (대시보드 붙여 넣기에서 자주 섞인다)
     const key = (env.VAPID_PUBLIC_KEY ?? process.env.VAPID_PUBLIC_KEY ?? "").trim();
     if (!key) throw new AppError("UNKNOWN", "알림 설정이 아직 준비되지 않았어요.");
+    const point = decodeB64url(key);
+    if (!point || point.length !== 65 || point[0] !== 0x04) {
+      throw new AppError(
+        "UNKNOWN",
+        "알림 키(VAPID_PUBLIC_KEY) 형식이 올바르지 않아요. 관리자 설정을 확인해 주세요.",
+      );
+    }
     return ok({ key });
   } catch (e) {
     return toActionError(e);
