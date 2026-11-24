@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage, LegalSection } from "@/components/LegalPage";
+import { CONTACT_EMAIL, CONTACT_FALLBACK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "이용약관",
@@ -8,10 +9,10 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalPage title="이용약관" updatedAt="2026-10-15">
+    <LegalPage title="이용약관" updatedAt="2026-11-24">
       <p>
         이 약관은 기도 동행(이하 &ldquo;서비스&rdquo;) 이용에 관한 조건을
-        정합니다. 정식 출시 전 초안이며, 법적 검토 후 보완될 수 있습니다.
+        정합니다. 웹과 Android 앱에 똑같이 적용됩니다.
       </p>
 
       <LegalSection heading="1. 서비스의 목적">
@@ -42,31 +43,42 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection heading="4. 콘텐츠의 권리">
+      <LegalSection heading="4. 신고와 운영 조치">
+        <p>
+          함께 기도하는 기도제목에 부적절하거나 불쾌한 내용, 괴롭힘·혐오 표현,
+          광고, 다른 사람의 개인정보가 있다면 기도제목 화면의 &lsquo;이
+          기도제목 신고하기&rsquo;로 알려주세요. 운영자는 신고를 확인하고, 이
+          약관이나 법령에 어긋나는 기도제목을 숨길 수 있습니다. 원치 않는
+          기도제목은 &lsquo;함께 기도 그만하기&rsquo;로 언제든 내 목록에서 지울
+          수 있고, 작성자는 특정 사람의 접근을 해제할 수 있습니다.
+        </p>
+      </LegalSection>
+
+      <LegalSection heading="5. 콘텐츠의 권리">
         <p>
           이용자가 작성한 기도제목과 기록의 권리는 이용자에게 있습니다. 서비스는
           기능 제공에 필요한 범위에서만 해당 내용을 저장·표시합니다.
         </p>
       </LegalSection>
 
-      <LegalSection heading="5. 서비스의 변경·중단">
+      <LegalSection heading="6. 서비스의 변경·중단">
         <p>
           서비스는 운영상·기술상 필요에 따라 내용을 변경하거나 일시 중단할 수
           있습니다. 중요한 변경은 서비스 내 안내를 통해 알립니다.
         </p>
       </LegalSection>
 
-      <LegalSection heading="6. 책임의 한계">
+      <LegalSection heading="7. 책임의 한계">
         <p>
           서비스는 안정적인 제공을 위해 노력하지만, 천재지변·장애 등 불가항력으로
           인한 손해에 대해서는 책임이 제한될 수 있습니다.
         </p>
       </LegalSection>
 
-      <LegalSection heading="7. 문의">
+      <LegalSection heading="8. 문의">
         <p>
-          약관에 관한 문의는 서비스 운영자에게 연락해 주세요. (연락처는 정식
-          출시 시 안내됩니다.)
+          약관에 관한 문의:{" "}
+          <span className="select-all text-ink">{CONTACT_EMAIL ?? CONTACT_FALLBACK}</span>
         </p>
       </LegalSection>
     </LegalPage>

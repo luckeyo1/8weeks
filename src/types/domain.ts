@@ -133,6 +133,21 @@ export interface AdminPrayer {
   participants: AdminPrayerParticipant[];
 }
 
+/** 관리자: 접수된 신고 (처리 전) */
+export interface AdminReport {
+  reportId: string;
+  prayerId: string;
+  prayerTitle: string;
+  prayerDescription: string | null;
+  ownerName: string | null;
+  ownerUsername: string | null;
+  reporterName: string | null;
+  reporterUsername: string | null;
+  reason: string;
+  detail: string | null;
+  createdAt: string;
+}
+
 /**
  * shareToken join 미리보기 (명세 13/32).
  * 개인정보 보호(P0): 수락 전(GUEST/NONE)에는 본문(title/description)을
