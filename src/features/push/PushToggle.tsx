@@ -118,7 +118,20 @@ export function PushToggle({
       try {
         const reg = await readyRegistration();
         const sub = reg ? await reg.pushManager.getSubscription() : null;
-        if (active) setState(sub ? "on" : "off");
+        if (!sub) {
+          if (active) setState("off");
+          return;
+        }
+        // 기기에 구독이 있으면 서버에도 다시 저장해 둘을 맞춘다(서버 저장이 실패했던 경우 복구).
+        // 서버에 저장할 수 없으면 기기 구독을 지워 "켜짐"으로 잘못 보이지 않게 한다.
+        const json = sub.toJSON();
+        const res = await savePushSubscription({
+          endpoint: sub.endpoint,
+          p256dh: json.keys?.p256dh ?? "",
+          auth: json.keys?.auth ?? "",
+        });
+        if (!res.ok) await sub.unsubscribe().catch(() => {});
+        if (active) setState(res.ok ? "on" : "off");
       } catch {
         if (active) setState("off");
       }
@@ -193,6 +206,8 @@ export function PushToggle({
             : "기도 리마인더 알림을 켰어요.",
         );
       } else {
+        // 서버에 저장하지 못했으면 기기 구독도 지운다(다시 들어왔을 때 "켜짐"으로 잘못 보이지 않게)
+        await sub.unsubscribe().catch(() => {});
         toast.show(res.message, "error");
       }
     } catch (e) {
