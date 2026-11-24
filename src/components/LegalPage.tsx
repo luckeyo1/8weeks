@@ -43,6 +43,10 @@ export function LegalPage({
           <Link href="/terms" className="hover:text-ink">
             이용약관
           </Link>
+          <span aria-hidden className="text-line">·</span>
+          <Link href="/account-deletion" className="hover:text-ink">
+            계정 삭제
+          </Link>
         </nav>
       </div>
     </main>

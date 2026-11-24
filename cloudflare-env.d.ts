@@ -39,4 +39,10 @@ interface CloudflareEnv {
   /** 로컬 테스트 전용: 가짜 카카오 서버 주소 (production 에서는 무시) */
   KAKAO_AUTH_BASE?: string;
   KAKAO_API_BASE?: string;
+
+  /**
+   * 안드로이드 앱 서명 SHA-256 지문 추가분 (콤마 구분, 선택).
+   * src/lib/android.ts 의 지문에 더해 /.well-known/assetlinks.json 에 실린다.
+   */
+  ANDROID_SHA256_FINGERPRINTS?: string;
 }

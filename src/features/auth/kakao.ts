@@ -90,7 +90,7 @@ export async function linkKakaoToUser(
   return "linked";
 }
 
-/** 내 정보: 로그인 수단. kakaoLinked=null 이면 마이그레이션(0010) 전이라 카카오 연결을 숨긴다. */
+/** 내 정보: 로그인 수단. kakaoLinked=null 이면 마이그레이션(0011_kakao_login) 전이라 카카오 연결을 숨긴다. */
 export async function getLoginMethods(
   uid: string,
 ): Promise<{ kakaoLinked: boolean | null; hasPassword: boolean }> {

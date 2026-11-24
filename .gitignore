@@ -39,3 +39,15 @@ yarn-error.log*
 /.open-next/
 /.wrangler/
 .dev.vars
+
+# android (TWA)
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/keystore.properties
+/android/.idea/
+*.jks
+*.keystore
+*.aab
+*.apk

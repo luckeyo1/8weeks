@@ -60,7 +60,7 @@
 6. (보안 권장) **Client Secret** 을 "사용함"으로 켰다면 `KAKAO_CLIENT_SECRET` 등록
 7. (선택) 회원 탈퇴 시 카카오 연결 끊기: **앱 키 → 어드민 키** 를 `KAKAO_ADMIN_KEY` 로
    등록 (서버 비밀키 — 절대 클라이언트에 노출 금지)
-8. D1 에 `migrations/0010_kakao_login.sql` 적용 (`users.kakao_id`)
+8. D1 에 `migrations/0011_kakao_login.sql` 적용 (`users.kakao_id`)
 
 계정 연결 원칙: 카카오 회원번호로만 계정을 찾습니다(이메일로 자동 병합하지 않음).
 기존 아이디 사용자는 **내 정보 → 카카오 계정 연결하기** 로 직접 연결합니다.
@@ -112,7 +112,7 @@ npm run dev                       # http://localhost:3000
   npx wrangler secret put VAPID_SUBJECT     # 예: mailto:운영자@도메인
   npx wrangler secret put CRON_SECRET       # 임의의 긴 문자열 (openssl rand -hex 24)
   ```
-- **DB:** `migrations/0011_reminder_time.sql` (`users.reminder_time`, `reminder_sent_date`).
+- **DB:** `migrations/0012_reminder_time.sql` (`users.reminder_time`, `reminder_sent_date`).
   적용 전에는 시간 선택이 숨겨지고 크론은 발송하지 않습니다.
 - **로컬 테스트:** `npx wrangler dev --test-scheduled` 후
   `curl "http://localhost:8787/cdn-cgi/handler/scheduled?cron=*%2F15+*+*+*+*"`.
@@ -173,6 +173,14 @@ npm run cf:deploy
 관련 파일: `wrangler.jsonc`, `open-next.config.ts`, `migrations/`, `seed.sql`,
 `.dev.vars.example`.
 
+## 안드로이드 앱 (구글 플레이스토어)
+
+`android/` 에 웹앱을 TWA(Trusted Web Activity)로 감싼 안드로이드 앱이 있습니다.
+화면·기능은 웹 배포만으로 앱에 반영되고, `android/` 를 바꿀 때만 앱을 다시 올립니다.
+빌드는 GitHub Actions(`.github/workflows/android.yml`)가 하고, 앱 인증 파일
+`/.well-known/assetlinks.json` 은 `src/lib/android.ts` 의 서명 지문으로 응답합니다.
+출시 절차는 [`android/README.md`](android/README.md) 를 참고하세요.
+
 ## PWA 확인
 
 - 프로덕션 실행 후 모바일 브라우저에서 "홈 화면에 추가"
@@ -226,7 +234,7 @@ src/
     bible/                  #   오늘의 말씀(verses.ts, 자동 생성) · 66권/장 도우미(books.ts)
   types/                    # db(Row) / domain(화면용) 타입
 worker.ts                   # Workers 진입점: OpenNext 워커 + 크론(매일 알림)
-migrations/0001_init.sql    # D1 스키마 (SQLite) — 이후 0002~0011 증분
+migrations/0001_init.sql    # D1 스키마 (SQLite) — 이후 0002~0012 증분
 seed.sql                    # 개발용 seed (마이그레이션과 분리)
 wrangler.jsonc              # Workers + D1 바인딩
 open-next.config.ts
@@ -265,6 +273,12 @@ open-next.config.ts
 - [x] 초대 흐름: 초대 페이지(누가·무엇을·비공개 안내) → 가입(초대 배너) → 초대 페이지로 복귀
 - [x] 공유: 기기 공유 시트(카카오톡 등) / 초대 메시지 복사 / QR, 만든 직후 초대 안내
 - [x] 홈 "시작하기" 체크리스트(가입 → 첫 기도제목 → 초대), 내 기도에 함께하는 사람 표시
+- [x] 성경 탭 · 성경 읽기 (개역한글 66권 전체, 장 단위 읽기 화면, 글자 크기, 이전/다음 장,
+  "이 장 다 읽었어요" → 읽은 곳 기록에 반영, 이어 읽기, 오늘의 말씀 → 해당 절로 이동,
+  한 번 읽은 장은 오프라인에서도 열림)
+- [x] 기도제목 신고 (함께 기도하는 사람 → 운영자 관리 화면에서 확인 완료/숨기기,
+  구글 플레이 사용자 제작 콘텐츠 정책 대응, migrations/0010)
+- [x] 계정 삭제 안내 페이지(`/account-deletion`, 플레이스토어 '계정 삭제 URL')
 
 ---
 
@@ -286,8 +300,18 @@ open-next.config.ts
   ```
 - 같은 날에는 모든 사용자에게 같은 구절이 보이고, 날마다 다음 구절로 넘어갑니다
   (현재 210구절 → 약 7개월 주기).
+- **성경 읽기(본문 전체)**: `public/bibledata/krv/<책>/<장>.json` (장별 1,189개, 31,101절)은
+  `scripts/bible/gen_chapters.py` 가 만든 파일입니다. 정본(holybible.or.kr)을 그대로 쓰고 앞뒤 공백만
+  정리합니다. 본문을 손으로 고치지 마세요. 화면 하단에 "성경전서 개역한글판 (대한성서공회)"를 표기합니다.
+
+  ```bash
+  python3 scripts/bible/gen_chapters.py \
+    /tmp/bible-db/data/krv/krv_holybible.jsonl public/bibledata/krv
+  ```
 - **성경 읽은 곳 기록**: 정해진 읽기표 없이, 읽은 장을 직접 골라 기록합니다(본인만 보임).
   `bible_chapter_reads`(장 단위, migrations/0009) + `bible_readings`(읽은 날, 0008).
+- **신고 기능**은 `0010_prayer_reports` 를 적용해야 동작합니다(적용 전에는 "준비 중" 안내).
+  문의 이메일은 `src/lib/contact.ts` 의 `CONTACT_EMAIL` 에 둡니다.
 - **배포 시** `npm run db:migrate:remote` 로 `0008`·`0009` 를 적용해야 읽은 곳 기록이
   나타납니다. 적용 전에는 말씀만 보이고 기록 UI 는 숨겨집니다. D1 콘솔에서 직접
   실행할 때는 콘솔이 한 줄 입력이라 **주석(`--`)을 빼고** create 문만 붙여 넣으세요.

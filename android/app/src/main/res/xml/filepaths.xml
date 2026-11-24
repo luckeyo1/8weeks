@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 스플래시 이미지를 크롬에 넘길 때 쓰는 경로 (android-browser-helper) -->
+<paths>
+    <files-path
+        name="twa_splash"
+        path="twa_splash/" />
+</paths>

@@ -31,7 +31,7 @@ export async function countPendingPrayers(
   );
 }
 
-/** 내 알림 시간. null 이면 마이그레이션(0011) 전이라 시간 선택을 숨긴다. */
+/** 내 알림 시간. null 이면 마이그레이션(0012_reminder_time) 전이라 시간 선택을 숨긴다. */
 export async function getReminderTime(userId: string): Promise<string | null> {
   try {
     const row = await dbFirst<{ reminder_time: string | null }>(

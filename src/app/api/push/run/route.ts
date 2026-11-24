@@ -47,7 +47,7 @@ export async function POST(request: Request): Promise<Response> {
   const targets = await listReminderTargets();
   if (!targets) {
     return NextResponse.json(
-      { ok: false, reason: "migration_0011_pending" },
+      { ok: false, reason: "reminder_migration_pending" },
       { status: 503 },
     );
   }

@@ -3,7 +3,8 @@
 import { isAdmin } from "@/features/admin/guard";
 import { hashPassword } from "@/lib/auth/password";
 import { generateRecoveryCode, normalizeRecoveryCode } from "@/lib/auth/recovery";
-import { dbFirst, dbRun } from "@/lib/db";
+import { revalidatePath } from "next/cache";
+import { dbBatch, dbFirst, dbRun } from "@/lib/db";
 import { AppError, toActionError, ok, type ActionResult } from "@/lib/errors";
 
 /**
@@ -31,6 +32,51 @@ export async function adminReissueRecoveryCode(
     );
 
     return ok({ recoveryCode: code });
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+/** 신고 처리: 문제없음으로 확인 완료 (기도제목은 그대로 둔다) */
+export async function adminResolveReport(reportId: string): Promise<ActionResult> {
+  try {
+    if (!(await isAdmin())) throw new AppError("FORBIDDEN");
+    await dbRun(
+      "update prayer_reports set status = 'RESOLVED', resolved_at = datetime('now') where id = ? and status = 'OPEN'",
+      [reportId],
+    );
+    revalidatePath("/admin");
+    return ok(undefined);
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+/**
+ * 신고 처리: 기도제목 숨기기.
+ * 기도제목을 soft delete(status='DELETED') 해 작성자·동행자 모두에게서 감추고,
+ * 그 기도제목에 접수된 신고를 함께 'HIDDEN' 으로 닫는다.
+ */
+export async function adminHideReportedPrayer(prayerId: string): Promise<ActionResult> {
+  try {
+    if (!(await isAdmin())) throw new AppError("FORBIDDEN");
+    const prayer = await dbFirst<{ id: string }>("select id from prayers where id = ?", [
+      prayerId,
+    ]);
+    if (!prayer) throw new AppError("NOT_FOUND");
+    await dbBatch([
+      {
+        sql: "update prayers set status = 'DELETED', updated_at = datetime('now') where id = ?",
+        params: [prayerId],
+      },
+      {
+        sql: "update prayer_reports set status = 'HIDDEN', resolved_at = datetime('now') where prayer_id = ? and status = 'OPEN'",
+        params: [prayerId],
+      },
+    ]);
+    revalidatePath("/admin");
+    revalidatePath("/home");
+    return ok(undefined);
   } catch (e) {
     return toActionError(e);
   }

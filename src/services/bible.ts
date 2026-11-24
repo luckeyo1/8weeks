@@ -75,3 +75,33 @@ export async function getBibleReadingState(
     throw e;
   }
 }
+
+/**
+ * 읽기 화면용: 이 장을 오늘 읽었는지, 전에 읽은 적이 있는지 (본인 기록만).
+ * 기록 테이블이 없으면 available=false (기록 버튼을 숨긴다).
+ */
+export async function getChapterReadState(
+  userId: string,
+  book: number,
+  chapter: number,
+  today: string,
+): Promise<{ available: boolean; readToday: boolean; readBefore: boolean }> {
+  try {
+    const row = await dbFirst<{ today: number | null; before: number | null }>(
+      `select max(case when read_date = ? then 1 else 0 end) as today,
+              max(case when read_date <> ? then 1 else 0 end) as before
+       from bible_chapter_reads where user_id = ? and book = ? and chapter = ?`,
+      [today, today, userId, book, chapter],
+    );
+    return {
+      available: true,
+      readToday: row?.today === 1,
+      readBefore: row?.before === 1,
+    };
+  } catch (e) {
+    if (isMissingTableError(e)) {
+      return { available: false, readToday: false, readBefore: false };
+    }
+    throw e;
+  }
+}

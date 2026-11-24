@@ -18,7 +18,14 @@ import {
   formatVerseRef,
   pickDailyVerse,
 } from "@/lib/bible/daily";
+import { bookNumber, chapterHref } from "@/lib/bible/text";
 import type { ParticipatingPrayer } from "@/types/domain";
+
+/** 오늘의 말씀 → 그 장 읽기 화면 (책 이름을 못 찾으면 링크 없음) */
+function verseHref(book: string, chapter: number, verse: number): string | undefined {
+  const n = bookNumber(book);
+  return n > 0 ? chapterHref(n, chapter, verse) : undefined;
+}
 
 export const metadata: Metadata = {
   title: "홈",
@@ -83,6 +90,7 @@ export default async function HomePage() {
           text: verse.text,
           reference: formatVerseRef(verse),
           translation: VERSE_TRANSLATION,
+          href: verseHref(verse.book, verse.chapter, verse.verseStart),
         }}
         reading={reading}
       />
