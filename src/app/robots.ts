@@ -19,6 +19,8 @@ export default function robots(): MetadataRoute.Robots {
         "/login",
         "/signup",
         "/admin",
+        "/bible",
+        "/bibledata/",
       ],
     },
     sitemap: `${publicEnv.siteUrl}/sitemap.xml`,

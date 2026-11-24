@@ -4,6 +4,8 @@
  * 민감한 기도 내용은 캐시하지 않도록 navigation 응답은 캐시에 저장하지 않는다.
  */
 const CACHE = "prayer-together-v1";
+// 성경 본문(개역한글, 바뀌지 않음): 한 번 읽은 장은 오프라인에서도 열리게 따로 보관
+const BIBLE_CACHE = "bible-krv-v1";
 const STATIC_ASSETS = ["/offline.html", "/icons/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -18,7 +20,11 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
+        Promise.all(
+          keys
+            .filter((k) => k !== CACHE && k !== BIBLE_CACHE)
+            .map((k) => caches.delete(k)),
+        ),
       ),
   );
   self.clients.claim();
@@ -35,6 +41,23 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(() => caches.match("/offline.html")),
+    );
+    return;
+  }
+
+  // 성경 본문: 캐시 우선, 없으면 받아서 보관
+  if (url.pathname.startsWith("/bibledata/")) {
+    event.respondWith(
+      caches.open(BIBLE_CACHE).then((cache) =>
+        cache.match(request).then(
+          (cached) =>
+            cached ||
+            fetch(request).then((res) => {
+              if (res.ok) cache.put(request, res.clone());
+              return res;
+            }),
+        ),
+      ),
     );
     return;
   }
