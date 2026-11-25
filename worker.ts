@@ -22,14 +22,15 @@ const worker = {
     env: Env,
     ctx: { waitUntil(p: Promise<unknown>): void },
   ) {
-    if (!env.CRON_SECRET) {
+    const cronSecret = env.CRON_SECRET?.trim();
+    if (!cronSecret) {
       console.warn("[cron] CRON_SECRET 이 없어 매일 알림 발송을 건너뜁니다.");
       return;
     }
     const res = await handler.fetch(
       new Request("https://cron.internal/api/push/run", {
         method: "POST",
-        headers: { "x-cron-secret": env.CRON_SECRET },
+        headers: { "x-cron-secret": cronSecret },
       }),
       env,
       ctx,

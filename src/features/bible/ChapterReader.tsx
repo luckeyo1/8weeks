@@ -25,6 +25,12 @@ import {
   type ChapterText,
 } from "@/lib/bible/text";
 import { setChapterReadToday } from "./actions";
+import { ListenBar, SPEECH_PROBLEM_MESSAGE } from "./ListenBar";
+import {
+  requestListenOnArrival,
+  takeListenOnArrival,
+  useChapterSpeech,
+} from "./useChapterSpeech";
 
 /** 글자 크기 단계 (px). 기기에만 기억한다. */
 const FONT_SIZES = [16, 18, 20, 23] as const;
@@ -80,6 +86,7 @@ type Load =
  * - 본문은 정적 JSON(개역한글)을 받아 그린다. 서비스워커가 한 번 읽은 장을 보관해 오프라인에서도 열린다.
  * - 맨 아래 "이 장 다 읽었어요"는 홈의 '오늘 읽은 곳'·통독 현황과 같은 기록에 더해진다.
  * - #v16 처럼 절 번호가 주소에 있으면 그 절로 이동해 잠시 표시한다(오늘의 말씀에서 들어올 때).
+ * - "소리로 듣기": 기기 내장 음성으로 절마다 읽고, 읽는 절을 표시한다(useChapterSpeech).
  */
 export function ChapterReader({
   book,
@@ -101,6 +108,14 @@ export function ChapterReader({
   const [readToday, setReadToday] = useState(initialReadToday);
   const [focusVerse, setFocusVerse] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const speech = useChapterSpeech(load.state === "ready" ? load.verses : null, {
+    onProblem: (p) => {
+      if (p === "no_korean_voice") toast.show(SPEECH_PROBLEM_MESSAGE[p], "error");
+    },
+    onEnded: () => track("bible_listen_completed"),
+  });
+  const listening = speech.status !== "idle";
 
   const unit = chapterUnit(book);
   const title = `${bookName(book)} ${chapter}${unit}`;
@@ -131,6 +146,43 @@ export function ChapterReader({
     const t = window.setTimeout(() => setFocusVerse(null), 4000);
     return () => window.clearTimeout(t);
   }, [focusVerse]);
+
+  // "다음 장 듣기"로 들어왔으면 본문이 준비되는 대로 이어서 읽는다
+  const { play } = speech;
+  useEffect(() => {
+    if (load.state !== "ready") return;
+    if (takeListenOnArrival(book, chapter)) play(0);
+  }, [load.state, book, chapter, play]);
+
+  // 읽는 절이 화면 밖이면 따라간다 (직접 스크롤해 둔 곳은 화면 안에 있으면 그대로 둔다)
+  useEffect(() => {
+    if (speech.status !== "playing" || speech.verse === null) return;
+    const el = document.getElementById(`v${speech.verse + 1}`);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const visibleTop = 64; // 상단 제목줄
+    const visibleBottom = window.innerHeight - 150; // 듣기 막대 + 하단 메뉴
+    if (r.top < visibleTop || r.bottom > visibleBottom) {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    }
+  }, [speech.status, speech.verse]);
+
+  function startListening() {
+    if (speech.play(0)) track("bible_listen_started", { from: "button" });
+  }
+
+  function listenNext() {
+    if (!next) return;
+    requestListenOnArrival(next.book, next.chapter);
+    track("bible_listen_started", { from: "next" });
+    router.push(chapterHref(next.book, next.chapter));
+  }
+
+  /** 읽는 중에 이전·다음 장으로 넘어가면 그 장도 이어서 읽는다 */
+  function keepListening(to: { book: number; chapter: number }) {
+    if (speech.status === "playing") requestListenOnArrival(to.book, to.chapter);
+  }
 
   function retry() {
     setLoad({ state: "loading" });
@@ -204,6 +256,26 @@ export function ChapterReader({
         </div>
       )}
 
+      {load.state === "ready" && speech.supported && (
+        <div className="-mt-1 flex">
+          {listening ? (
+            <p className="inline-flex min-h-[40px] items-center gap-1.5 rounded-pill bg-primary-soft px-3.5 text-[14px] font-medium text-primary">
+              <SpeakerIcon />
+              {speech.status === "ended" ? "끝까지 들었어요" : "소리로 듣는 중"}
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={startListening}
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-pill border border-line bg-surface px-3.5 text-[14px] font-medium text-ink hover:border-primary/40"
+            >
+              <SpeakerIcon />
+              소리로 듣기
+            </button>
+          )}
+        </div>
+      )}
+
       {load.state === "ready" && (
         <article
           lang="ko"
@@ -216,9 +288,12 @@ export function ChapterReader({
               <p
                 key={n}
                 id={`v${n}`}
+                aria-current={speech.verse === i ? "true" : undefined}
                 className={cn(
                   "scroll-mt-20 rounded-lg px-1 transition-colors duration-700",
                   focusVerse === n && "bg-primary-soft",
+                  // 지금 읽는 절: 소리를 따라 눈으로 찾기 쉽게 조금 더 진하게
+                  speech.verse === i && "bg-primary/15 duration-200",
                 )}
               >
                 <sup className="mr-1.5 select-none text-[0.62em] font-semibold text-primary">
@@ -265,6 +340,7 @@ export function ChapterReader({
           {prev ? (
             <Link
               href={chapterHref(prev.book, prev.chapter)}
+              onClick={() => keepListening(prev)}
               className="flex min-h-[48px] flex-1 items-center justify-center gap-1 rounded-card border border-line bg-surface px-3 text-[15px] text-ink hover:border-primary/40"
             >
               <span aria-hidden>‹</span>
@@ -277,6 +353,7 @@ export function ChapterReader({
           {next ? (
             <Link
               href={chapterHref(next.book, next.chapter)}
+              onClick={() => keepListening(next)}
               className={cn(
                 "flex min-h-[48px] flex-1 items-center justify-center gap-1 rounded-card px-3 text-[15px] font-semibold",
                 readToday
@@ -295,6 +372,60 @@ export function ChapterReader({
       )}
 
       <p className="pb-2 pt-2 text-center text-[12px] text-ink-soft/80">{BIBLE_TEXT_SOURCE}</p>
+
+      {listening && load.state === "ready" && (
+        <>
+          {/* 듣기 막대에 가려지지 않게 아래 여백 */}
+          <div aria-hidden className={speech.status === "ended" ? "h-36" : "h-20"} />
+          <ListenBar
+            speech={speech}
+            totalVerses={load.verses.length}
+            endedNote={
+              readToday
+                ? "오늘 읽은 곳에 기록돼 있어요."
+                : recordAvailable
+                  ? "들은 것도 읽은 거예요. 원하면 기록해 두세요."
+                  : "수고하셨어요."
+            }
+            endActions={
+              (recordAvailable && !readToday) || next ? (
+                <>
+                  {recordAvailable && !readToday && (
+                    <Button
+                      variant="secondary"
+                      className="flex-1"
+                      loading={pending}
+                      onClick={() => setRead(true)}
+                    >
+                      다 읽었어요
+                    </Button>
+                  )}
+                  {next && (
+                    <Button className="flex-1" onClick={listenNext}>
+                      {bookName(next.book)} {next.chapter}
+                      {chapterUnit(next.book)} 듣기
+                    </Button>
+                  )}
+                </>
+              ) : undefined
+            }
+          />
+        </>
+      )}
     </div>
+  );
+}
+
+function SpeakerIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5zM15.5 9a4 4 0 010 6M18 6.5a7.5 7.5 0 010 11"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

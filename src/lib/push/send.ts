@@ -41,10 +41,13 @@ export function readVapidKeys(env: {
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
 }): VapidKeys | null {
-  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return null;
+  // 대시보드에 붙여 넣을 때 섞인 앞뒤 공백·줄바꿈 제거
+  const publicKey = env.VAPID_PUBLIC_KEY?.trim();
+  const privateKey = env.VAPID_PRIVATE_KEY?.trim();
+  if (!publicKey || !privateKey) return null;
   return {
-    publicKey: env.VAPID_PUBLIC_KEY,
-    privateKey: env.VAPID_PRIVATE_KEY,
-    subject: env.VAPID_SUBJECT || "mailto:admin@example.com",
+    publicKey,
+    privateKey,
+    subject: env.VAPID_SUBJECT?.trim() || "mailto:admin@example.com",
   };
 }
