@@ -127,14 +127,36 @@ export function isKoreanVoice(v: Pick<VoiceLike, "lang">): boolean {
 }
 
 /**
- * 한국어 음성 고르기: 기기 기본 음성 → 기기 안 음성(오프라인에서도 됨) → 아무 한국어 음성.
- * 한국어 음성이 없으면 null.
+ * 한국어 음성 고르기: 사용자가 고른 음성 → 기기 기본 음성 → 기기 안 음성(오프라인에서도 됨)
+ * → 아무 한국어 음성. 한국어 음성이 없으면 null.
+ * 고른 음성이 기기에서 사라졌으면(삭제·다른 기기) 자동으로 고른다.
  */
 export function pickKoreanVoice<V extends VoiceLike>(
   voices: readonly V[],
+  preferredURI?: string | null,
 ): V | null {
   const ko = voices.filter(isKoreanVoice);
   return (
-    ko.find((v) => v.default) ?? ko.find((v) => v.localService) ?? ko[0] ?? null
+    (preferredURI ? ko.find((v) => v.voiceURI === preferredURI) : undefined) ??
+    ko.find((v) => v.default) ??
+    ko.find((v) => v.localService) ??
+    ko[0] ??
+    null
   );
 }
+
+/** 목소리 고르기 화면에 보일 한국어 음성: 기기 기본 → 기기 안 음성 → 이름순 (같은 음성은 한 번만) */
+export function koreanVoices<V extends VoiceLike>(voices: readonly V[]): V[] {
+  const seen = new Set<string>();
+  const rank = (v: V) => (v.default ? 0 : v.localService ? 1 : 2);
+  return voices
+    .filter((v) => {
+      if (!isKoreanVoice(v) || seen.has(v.voiceURI)) return false;
+      seen.add(v.voiceURI);
+      return true;
+    })
+    .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, "ko"));
+}
+
+/** 미리 듣기 문장 */
+export const VOICE_SAMPLE = "태초에 하나님이 천지를 창조하시니라";

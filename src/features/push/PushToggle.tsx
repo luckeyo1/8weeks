@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { track } from "@/lib/analytics";
 import {
   deletePushSubscription,
   getVapidPublicKey,
@@ -200,6 +201,7 @@ export function PushToggle({
       });
       if (res.ok) {
         setState("on");
+        track("push_enabled");
         toast.show(
           reminderTime !== null
             ? `알림을 켰어요. 매일 ${reminderLabel(time)}에 알려드릴게요.`

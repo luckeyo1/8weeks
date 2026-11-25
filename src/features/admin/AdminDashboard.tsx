@@ -16,21 +16,25 @@ import type {
   AdminPrayer,
   AdminReport,
   AdminUser,
+  UsageStats,
 } from "@/types/domain";
 
-type Tab = "overview" | "reports" | "users" | "prayers";
+type Tab = "overview" | "usage" | "reports" | "users" | "prayers";
 
 export function AdminDashboard({
   overview,
   users,
   prayers,
   reports,
+  usage,
 }: {
   overview: AdminOverview;
   users: AdminUser[];
   prayers: AdminPrayer[];
   /** null: 신고 테이블(0010) 미적용 */
   reports: AdminReport[] | null;
+  /** null: 이용 통계 테이블(0013) 미적용 */
+  usage: UsageStats | null;
 }) {
   // 처리할 신고가 있으면 신고 탭부터
   const [tab, setTab] = useState<Tab>(reports && reports.length > 0 ? "reports" : "overview");
@@ -40,6 +44,9 @@ export function AdminDashboard({
       <div role="tablist" className="flex flex-wrap gap-2">
         <TabBtn active={tab === "overview"} onClick={() => setTab("overview")}>
           요약
+        </TabBtn>
+        <TabBtn active={tab === "usage"} onClick={() => setTab("usage")}>
+          이용 통계
         </TabBtn>
         <TabBtn active={tab === "reports"} onClick={() => setTab("reports")}>
           신고 {reports?.length ?? 0}
@@ -53,6 +60,7 @@ export function AdminDashboard({
       </div>
 
       {tab === "overview" && <Overview overview={overview} />}
+      {tab === "usage" && <Usage usage={usage} />}
       {tab === "reports" && <Reports reports={reports} />}
       {tab === "users" && <Users users={users} />}
       {tab === "prayers" && <Prayers prayers={prayers} />}
@@ -96,6 +104,78 @@ function Overview({ overview }: { overview: AdminOverview }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function percent(rate: number | null): string {
+  return rate === null ? "—" : `${Math.round(rate * 100)}%`;
+}
+
+function Usage({ usage }: { usage: UsageStats | null }) {
+  if (usage === null) {
+    return (
+      <Empty>
+        이용 통계를 쌓으려면 DB 마이그레이션(0013_usage_events)을 적용해야 해요.
+      </Empty>
+    );
+  }
+  if (usage.rows.length === 0) {
+    return <Empty>최근 14일 동안 쌓인 기록이 아직 없어요.</Empty>;
+  }
+  const ratios = [
+    {
+      label: "장 열기 대비 듣기 시작",
+      value: percent(usage.listenStartRate),
+    },
+    {
+      label: "듣기 시작 대비 끝까지",
+      value: percent(usage.listenCompleteRate),
+    },
+  ];
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-ink-soft">
+        기능별 사용 횟수의 합계예요. 누가 썼는지는 기록하지 않아요. (최근 7일 =
+        오늘 포함)
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {ratios.map((r) => (
+          <div key={r.label} className="card p-4">
+            <p className="text-xs text-ink-soft">{r.label}</p>
+            <p className="mt-1 text-2xl font-bold text-ink tabular-nums">
+              {r.value}
+            </p>
+            <p className="text-[11px] text-ink-soft">최근 7일</p>
+          </div>
+        ))}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-line text-left text-xs text-ink-soft">
+              <th className="py-2 pr-2 font-medium">기능</th>
+              <th className="py-2 pr-2 text-right font-medium">오늘</th>
+              <th className="py-2 pr-2 text-right font-medium">최근 7일</th>
+              <th className="py-2 text-right font-medium">그 전 7일</th>
+            </tr>
+          </thead>
+          <tbody>
+            {usage.rows.map((r) => (
+              <tr key={r.event} className="border-b border-line/60">
+                <td className="py-2 pr-2 text-ink">{r.label}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{r.today}</td>
+                <td className="py-2 pr-2 text-right font-semibold tabular-nums">
+                  {r.last7}
+                </td>
+                <td className="py-2 text-right tabular-nums text-ink-soft">
+                  {r.prev7}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

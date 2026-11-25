@@ -7,6 +7,7 @@ import {
   getAdminReports,
   getAdminUsers,
 } from "@/services/admin";
+import { getUsageStats } from "@/services/usage";
 import { AdminDashboard } from "@/features/admin/AdminDashboard";
 
 export const metadata: Metadata = {
@@ -20,11 +21,12 @@ export default async function AdminPage() {
   await requireProfile();
   await requireAdmin(); // 관리자 아니면 404
 
-  const [overview, users, prayers, reports] = await Promise.all([
+  const [overview, users, prayers, reports, usage] = await Promise.all([
     getAdminOverview(),
     getAdminUsers(),
     getAdminPrayers(),
     getAdminReports(),
+    getUsageStats(),
   ]);
 
   return (
@@ -40,6 +42,7 @@ export default async function AdminPage() {
         users={users}
         prayers={prayers}
         reports={reports}
+        usage={usage}
       />
     </div>
   );

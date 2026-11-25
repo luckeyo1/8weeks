@@ -26,6 +26,7 @@ import {
 } from "@/lib/bible/text";
 import { setChapterReadToday } from "./actions";
 import { ListenBar, SPEECH_PROBLEM_MESSAGE } from "./ListenBar";
+import { VoiceSheet } from "./VoiceSheet";
 import {
   requestListenOnArrival,
   takeListenOnArrival,
@@ -108,6 +109,7 @@ export function ChapterReader({
   const [readToday, setReadToday] = useState(initialReadToday);
   const [focusVerse, setFocusVerse] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   const speech = useChapterSpeech(load.state === "ready" ? load.verses : null, {
     onProblem: (p) => {
@@ -146,6 +148,11 @@ export function ChapterReader({
     const t = window.setTimeout(() => setFocusVerse(null), 4000);
     return () => window.clearTimeout(t);
   }, [focusVerse]);
+
+  // 이용 통계: 장을 연 횟수 (듣기 비율의 기준)
+  useEffect(() => {
+    if (load.state === "ready") track("bible_chapter_opened");
+  }, [load.state]);
 
   // "다음 장 듣기"로 들어왔으면 본문이 준비되는 대로 이어서 읽는다
   const { play } = speech;
@@ -273,7 +280,17 @@ export function ChapterReader({
               소리로 듣기
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setVoiceOpen(true)}
+            className="ml-1 inline-flex min-h-[40px] items-center rounded-pill px-3 text-[14px] text-ink-soft hover:bg-line/50 hover:text-ink"
+          >
+            목소리
+          </button>
         </div>
+      )}
+      {speech.supported && (
+        <VoiceSheet open={voiceOpen} onClose={() => setVoiceOpen(false)} speech={speech} />
       )}
 
       {load.state === "ready" && (

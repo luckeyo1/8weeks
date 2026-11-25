@@ -3,6 +3,7 @@ import {
   SPEECH_CHUNK_MAX,
   chapterSpeechPlan,
   isKoreanVoice,
+  koreanVoices,
   nextSpeechRate,
   nextSpokenVerse,
   pickKoreanVoice,
@@ -130,5 +131,35 @@ describe("한국어 음성 고르기", () => {
     expect(pickKoreanVoice([en, remote])?.name).toBe("Google 한국의");
     expect(pickKoreanVoice([en])).toBeNull();
     expect(pickKoreanVoice([])).toBeNull();
+  });
+
+  it("사용자가 고른 음성이 먼저, 없어졌으면 자동으로", () => {
+    const remote = v("ko-KR", "Google 한국의");
+    const def = v("ko-KR", "Default", { default: true });
+    const en = v("en-US", "English");
+    expect(pickKoreanVoice([remote, def], "Google 한국의")?.name).toBe(
+      "Google 한국의",
+    );
+    expect(pickKoreanVoice([remote, def], "사라진 음성")?.name).toBe("Default");
+    expect(pickKoreanVoice([remote, def], null)?.name).toBe("Default");
+    // 한국어가 아닌 음성은 골라 두었어도 쓰지 않는다
+    expect(pickKoreanVoice([en, def], "English")?.name).toBe("Default");
+  });
+
+  it("목소리 목록: 한국어만, 기본 → 기기 안 → 이름순, 중복 없음", () => {
+    const list = koreanVoices([
+      v("en-US", "English", { default: true }),
+      v("ko-KR", "하나"),
+      v("ko-KR", "Yuna", { localService: true }),
+      v("ko-KR", "가람"),
+      v("ko-KR", "Default", { default: true }),
+      v("ko-KR", "Yuna", { localService: true }),
+    ]);
+    expect(list.map((x) => x.name)).toEqual([
+      "Default",
+      "Yuna",
+      "가람",
+      "하나",
+    ]);
   });
 });
