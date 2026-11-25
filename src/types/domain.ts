@@ -157,6 +157,25 @@ export interface AdminReport {
   createdAt: string;
 }
 
+/** 이용 통계 한 줄 (관리자). 기능별 하루 사용 횟수 합계 — 개인 식별 정보 없음 */
+export interface UsageEventStat {
+  event: string;
+  label: string;
+  today: number;
+  /** 오늘 포함 최근 7일 */
+  last7: number;
+  /** 그 전 7일 */
+  prev7: number;
+}
+
+export interface UsageStats {
+  rows: UsageEventStat[];
+  /** 최근 7일 성경 장 열기 대비 듣기 시작 (0~1, 분모 0 이면 null) */
+  listenStartRate: number | null;
+  /** 최근 7일 듣기 시작 대비 끝까지 듣기 (0~1, 분모 0 이면 null) */
+  listenCompleteRate: number | null;
+}
+
 /**
  * shareToken join 미리보기 (명세 13/32).
  * 개인정보 보호(P0): 수락 전(GUEST/NONE)에는 본문(title/description)을

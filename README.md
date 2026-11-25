@@ -234,7 +234,7 @@ src/
     bible/                  #   오늘의 말씀(verses.ts, 자동 생성) · 66권/장 도우미(books.ts)
   types/                    # db(Row) / domain(화면용) 타입
 worker.ts                   # Workers 진입점: OpenNext 워커 + 크론(매일 알림)
-migrations/0001_init.sql    # D1 스키마 (SQLite) — 이후 0002~0012 증분
+migrations/0001_init.sql    # D1 스키마 (SQLite) — 이후 0002~0013 증분
 seed.sql                    # 개발용 seed (마이그레이션과 분리)
 wrangler.jsonc              # Workers + D1 바인딩
 open-next.config.ts
@@ -277,7 +277,9 @@ open-next.config.ts
   "이 장 다 읽었어요" → 읽은 곳 기록에 반영, 이어 읽기, 오늘의 말씀 → 해당 절로 이동,
   한 번 읽은 장은 오프라인에서도 열림)
 - [x] 성경 듣기 (기기 내장 음성으로 한 장을 소리로 읽기 — 읽는 절 표시·따라가기, 일시정지/이어 듣기,
-  이전/다음 절, 속도 0.8~1.5배, 읽는 동안 화면 켜 둠, 끝나면 "다 읽었어요"·다음 장 듣기 권유)
+  이전/다음 절, 속도 0.8~1.5배, 읽는 동안 화면 켜 둠, 끝나면 "다 읽었어요"·다음 장 듣기 권유,
+  목소리 고르기·들어보기 + 기기별 고음질 음성 받는 법 안내)
+- [x] 이용 통계 (기능별 하루 사용 횟수 합계만, 누가 썼는지 저장 안 함 → 관리자 › 이용 통계, migrations/0013)
 - [x] 기도제목 신고 (함께 기도하는 사람 → 운영자 관리 화면에서 확인 완료/숨기기,
   구글 플레이 사용자 제작 콘텐츠 정책 대응, migrations/0010)
 - [x] 계정 삭제 안내 페이지(`/account-deletion`, 플레이스토어 '계정 삭제 URL')
@@ -317,8 +319,19 @@ open-next.config.ts
   - 한국어 음성이 없는 기기는 영어 음성으로 읽지 않고 내려받는 방법을 안내합니다. 음성 합성이 없는 브라우저
     (일부 앱 안 브라우저)에서는 듣기 버튼이 보이지 않습니다.
   - 들은 장을 자동으로 기록하지 않습니다. 끝까지 들으면 "다 읽었어요" 버튼을 권할 뿐입니다.
+  - 목소리: 기기에 있는 한국어 음성 중에서 고르고 들어 볼 수 있습니다("목소리" 버튼). 고른 목소리는
+    기기에 기억하고(`pt-bible-voice`), 그 음성이 사라지면 자동으로 고릅니다.
   - 코드: `src/lib/bible/speech.ts`(문장 나누기·음성 고르기, 테스트 있음),
-    `src/features/bible/useChapterSpeech.ts`(재생), `ListenBar.tsx`(조절 막대).
+    `src/features/bible/useChapterSpeech.ts`(재생), `ListenBar.tsx`(조절 막대), `VoiceSheet.tsx`(목소리).
+- **이용 통계**: `track()`(`src/lib/analytics.ts`)이 이벤트 이름만 `/api/track` 으로 보내고, 서버는
+  `usage_events`(날짜, 이벤트, 횟수)에 합계만 올립니다. 사용자 id·기도 정보는 저장하지 않으며 로그인한
+  요청만 셉니다. 관리자 화면 › 이용 통계에서 최근 7일/그 전 7일과 듣기 비율을 봅니다.
+  - 새 이벤트는 `ANALYTICS_EVENTS`(허용 목록)와 `ANALYTICS_EVENT_LABELS` 에 함께 추가합니다.
+  - `0013_usage_events` 적용 전에는 아무것도 쌓이지 않을 뿐 앱은 그대로 동작합니다. D1 콘솔에서는 한 줄로:
+
+    ```sql
+    create table if not exists usage_events (day text not null, event text not null, count integer not null default 0, primary key (day, event));
+    ```
 - **성경 읽은 곳 기록**: 정해진 읽기표 없이, 읽은 장을 직접 골라 기록합니다(본인만 보임).
   `bible_chapter_reads`(장 단위, migrations/0009) + `bible_readings`(읽은 날, 0008).
 - **신고 기능**은 `0010_prayer_reports` 를 적용해야 동작합니다(적용 전에는 "준비 중" 안내).
