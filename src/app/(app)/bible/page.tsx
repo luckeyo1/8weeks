@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireProfile } from "@/features/auth/service";
-import { getBibleReadingState } from "@/services/bible";
+import { getBibleReadingState, getRecentHighlights } from "@/services/bible";
+import { groupHighlights } from "@/lib/bible/highlights";
+import { HighlightList } from "@/features/bible/HighlightList";
 import { appTodayISO } from "@/lib/date";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -40,7 +42,11 @@ type BookProgress = {
  */
 export default async function BiblePage() {
   const profile = await requireProfile();
-  const reading = await getBibleReadingState(profile.id, appTodayISO());
+  const [reading, highlightRows] = await Promise.all([
+    getBibleReadingState(profile.id, appTodayISO()),
+    getRecentHighlights(profile.id, 30),
+  ]);
+  const recentHighlights = highlightRows ? groupHighlights(highlightRows).slice(0, 3) : [];
   const keys = reading.available ? reading.readKeys : null;
 
   if (keys === null) {
@@ -137,6 +143,21 @@ export default async function BiblePage() {
           기록하면 여기에 채워져요. 순서도 속도도 자유예요.
         </p>
       </section>
+
+      {recentHighlights.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[15px] font-semibold text-ink">내 하이라이트</h2>
+            <Link
+              href="/bible/highlights"
+              className="px-1 py-1 text-[13px] font-medium text-primary hover:underline"
+            >
+              모두 보기
+            </Link>
+          </div>
+          <HighlightList groups={recentHighlights} />
+        </section>
+      )}
 
       <BookList title="구약" books={old} />
       <BookList title="신약" books={neu} />

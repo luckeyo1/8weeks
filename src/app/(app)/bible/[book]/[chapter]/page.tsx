@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/features/auth/service";
-import { getChapterReadState } from "@/services/bible";
+import { getChapterHighlights, getChapterReadState } from "@/services/bible";
 import { ChapterReader } from "@/features/bible/ChapterReader";
 import { appTodayISO } from "@/lib/date";
 import { bookName, chapterUnit } from "@/lib/bible/books";
@@ -27,7 +27,10 @@ export default async function ChapterPage({ params }: { params: Params }) {
   if (!ref) notFound();
 
   const profile = await requireProfile();
-  const state = await getChapterReadState(profile.id, ref.book, ref.chapter, appTodayISO());
+  const [state, highlights] = await Promise.all([
+    getChapterReadState(profile.id, ref.book, ref.chapter, appTodayISO()),
+    getChapterHighlights(profile.id, ref.book, ref.chapter),
+  ]);
 
   return (
     <ChapterReader
@@ -38,6 +41,7 @@ export default async function ChapterPage({ params }: { params: Params }) {
       recordAvailable={state.available}
       initialReadToday={state.readToday}
       readBefore={state.readBefore}
+      initialHighlights={highlights}
     />
   );
 }

@@ -11,6 +11,7 @@ import {
   normalizeChapterRefs,
   type ChapterRef,
 } from "@/lib/bible/books";
+import { isHighlightColor, normalizeVerses } from "@/lib/bible/highlights";
 
 /**
  * 오늘 읽은 곳 저장. 오늘 기록을 통째로 바꾼다(빈 목록이면 오늘 기록 삭제).
@@ -97,7 +98,10 @@ export async function setChapterReadToday(
       }
     } catch (e) {
       if (isMissingTableError(e)) {
-        throw new AppError("UNKNOWN", "성경 읽기 기록을 준비하고 있어요. 잠시 후 다시 시도해주세요.");
+        throw new AppError(
+          "UNKNOWN",
+          "성경 읽기 기록을 준비하고 있어요. 잠시 후 다시 시도해주세요.",
+        );
       }
       throw e;
     }
@@ -105,6 +109,60 @@ export async function setChapterReadToday(
     revalidatePath("/home");
     revalidatePath("/bible");
     return ok({ readToday: read });
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+/**
+ * 하이라이트: 이 장의 여러 절을 한 색으로 칠하거나(color) 지운다(null). 본인 것만 바뀐다.
+ * 절 번호·색은 서버에서 다시 검증한다.
+ */
+export async function setHighlights(
+  book: number,
+  chapter: number,
+  verses: number[],
+  color: string | null,
+): Promise<ActionResult<{ count: number }>> {
+  try {
+    const uid = await getAuthUser();
+    if (!uid) throw new AppError("UNAUTHENTICATED");
+    if (!isValidChapter(book, chapter)) throw new AppError("VALIDATION");
+    const list = normalizeVerses(verses);
+    if (!list) throw new AppError("VALIDATION");
+    if (color !== null && !isHighlightColor(color)) {
+      throw new AppError("VALIDATION");
+    }
+
+    try {
+      await dbBatch(
+        list.map((verse) =>
+          color === null
+            ? {
+                sql: "delete from bible_highlights where user_id = ? and book = ? and chapter = ? and verse = ?",
+                params: [uid, book, chapter, verse],
+              }
+            : {
+                sql: `insert into bible_highlights (user_id, book, chapter, verse, color) values (?, ?, ?, ?, ?)
+                      on conflict(user_id, book, chapter, verse)
+                      do update set color = excluded.color, updated_at = datetime('now')`,
+                params: [uid, book, chapter, verse, color],
+              },
+        ),
+      );
+    } catch (e) {
+      if (isMissingTableError(e)) {
+        throw new AppError(
+          "UNKNOWN",
+          "하이라이트를 준비하고 있어요. 잠시 후 다시 시도해주세요.",
+        );
+      }
+      throw e;
+    }
+
+    revalidatePath("/bible");
+    revalidatePath("/bible/highlights");
+    return ok({ count: list.length });
   } catch (e) {
     return toActionError(e);
   }

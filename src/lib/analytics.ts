@@ -24,6 +24,7 @@ export const ANALYTICS_EVENTS = [
   "bible_listen_started",
   "bible_listen_completed",
   "bible_voice_changed",
+  "bible_highlighted",
   "push_enabled",
 ] as const;
 
@@ -53,6 +54,7 @@ export const ANALYTICS_EVENT_LABELS: Record<AnalyticsEvent, string> = {
   bible_listen_started: "듣기 시작",
   bible_listen_completed: "끝까지 듣기",
   bible_voice_changed: "목소리 바꾸기",
+  bible_highlighted: "하이라이트",
   push_enabled: "알림 켜기",
 };
 

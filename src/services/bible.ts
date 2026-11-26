@@ -3,6 +3,11 @@ import "server-only";
 import { dbAll, dbFirst } from "@/lib/db";
 import { weekDatesISO } from "@/lib/date";
 import { chapterKey } from "@/lib/bible/books";
+import {
+  isHighlightColor,
+  type HighlightColor,
+  type HighlightRow,
+} from "@/lib/bible/highlights";
 import type { BibleReadingState } from "@/types/domain";
 
 /** 마이그레이션(0008/0009) 적용 전에도 화면이 깨지지 않도록 테이블 부재는 조용히 처리 */
@@ -102,6 +107,56 @@ export async function getChapterReadState(
     if (isMissingTableError(e)) {
       return { available: false, readToday: false, readBefore: false };
     }
+    throw e;
+  }
+}
+
+/**
+ * 읽기 화면: 이 장의 내 하이라이트 (절 → 색). 본인 것만.
+ * 테이블(migrations/0014)이 없으면 null → 하이라이트 기능을 숨긴다.
+ */
+export async function getChapterHighlights(
+  userId: string,
+  book: number,
+  chapter: number,
+): Promise<Record<number, HighlightColor> | null> {
+  try {
+    const rows = await dbAll<{ verse: number; color: string }>(
+      "select verse, color from bible_highlights where user_id = ? and book = ? and chapter = ?",
+      [userId, book, chapter],
+    );
+    const map: Record<number, HighlightColor> = {};
+    for (const r of rows) if (isHighlightColor(r.color)) map[r.verse] = r.color;
+    return map;
+  } catch (e) {
+    if (isMissingTableError(e)) return null;
+    throw e;
+  }
+}
+
+/** 내 하이라이트 모아보기: 최근에 표시·변경한 순. 테이블이 없으면 null */
+export async function getRecentHighlights(
+  userId: string,
+  limit: number,
+): Promise<HighlightRow[] | null> {
+  try {
+    const rows = await dbAll<{
+      book: number;
+      chapter: number;
+      verse: number;
+      color: string;
+    }>(
+      `select book, chapter, verse, color from bible_highlights
+       where user_id = ? order by updated_at desc, book, chapter, verse limit ?`,
+      [userId, limit],
+    );
+    return rows.flatMap((r) =>
+      isHighlightColor(r.color)
+        ? [{ book: r.book, chapter: r.chapter, verse: r.verse, color: r.color }]
+        : [],
+    );
+  } catch (e) {
+    if (isMissingTableError(e)) return null;
     throw e;
   }
 }
