@@ -1,5 +1,6 @@
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { requireProfile } from "@/features/auth/service";
+import { MiniWindowProvider } from "@/features/mini/MiniWindowProvider";
 
 /**
  * 로그인 + 온보딩이 완료된 사용자만 접근 가능한 앱 영역.
@@ -13,9 +14,11 @@ export default async function AppLayout({
   await requireProfile();
 
   return (
-    <div className="app-shell">
-      <main className="app-main">{children}</main>
-      <BottomNavigation />
-    </div>
+    <MiniWindowProvider>
+      <div className="app-shell">
+        <main className="app-main">{children}</main>
+        <BottomNavigation />
+      </div>
+    </MiniWindowProvider>
   );
 }

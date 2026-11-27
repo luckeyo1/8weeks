@@ -1,4 +1,5 @@
 import { BIBLE_BOOKS, chapterCount, type ChapterRef } from "./books";
+import type { Verse } from "./types";
 
 /**
  * 성경 본문 (읽기 화면).
@@ -21,6 +22,12 @@ export function chapterHref(book: number, chapter: number, verse?: number): stri
 /** "요한복음" → 43. 없으면 0 */
 export function bookNumber(name: string): number {
   return BIBLE_BOOKS.findIndex(([n]) => n === name) + 1;
+}
+
+/** 오늘의 말씀 → 그 장 읽기 화면, 그 절로 (책 이름을 못 찾으면 null) */
+export function dailyVerseHref(verse: Pick<Verse, "book" | "chapter" | "verseStart">): string | null {
+  const n = bookNumber(verse.book);
+  return n > 0 ? chapterHref(n, verse.chapter, verse.verseStart) : null;
 }
 
 /** 이전 장 (창세기 1장이면 null) */

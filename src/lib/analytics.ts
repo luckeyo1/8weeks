@@ -26,6 +26,7 @@ export const ANALYTICS_EVENTS = [
   "bible_voice_changed",
   "bible_highlighted",
   "push_enabled",
+  "mini_window_opened",
 ] as const;
 
 export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];
@@ -56,6 +57,7 @@ export const ANALYTICS_EVENT_LABELS: Record<AnalyticsEvent, string> = {
   bible_voice_changed: "목소리 바꾸기",
   bible_highlighted: "하이라이트",
   push_enabled: "알림 켜기",
+  mini_window_opened: "작은 창 열기",
 };
 
 type Props = Record<string, string | number | boolean | undefined>;

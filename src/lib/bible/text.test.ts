@@ -6,6 +6,7 @@ import {
   bookNumber,
   chapterDataUrl,
   chapterHref,
+  dailyVerseHref,
   nextChapterOrNull,
   parseChapterParams,
   prevChapter,
@@ -63,5 +64,14 @@ describe("장 이동 · 주소", () => {
     expect(bookNumber("없는책")).toBe(0);
     expect(chapterHref(43, 3, 16)).toBe("/bible/43/3#v16");
     expect(chapterHref(1, 1)).toBe("/bible/1/1");
+  });
+});
+
+describe("dailyVerseHref", () => {
+  it("오늘의 말씀 → 그 장의 그 절", () => {
+    expect(dailyVerseHref({ book: "요한복음", chapter: 3, verseStart: 16 })).toBe("/bible/43/3#v16");
+  });
+  it("책 이름을 못 찾으면 null", () => {
+    expect(dailyVerseHref({ book: "없는책", chapter: 1, verseStart: 1 })).toBeNull();
   });
 });

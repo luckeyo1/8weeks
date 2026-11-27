@@ -111,6 +111,23 @@ export interface AdminOverview {
   checksToday: number;
 }
 
+/**
+ * PC "작은 창"(항상 위 미니 창) 데이터. 기도 제목·내용은 담지 않는다(매일 알림과 같은 원칙).
+ */
+export interface MiniWindowData {
+  today: string;
+  verse: { text: string; ref: string; href: string | null };
+  /** 오늘 아직 기도 체크하지 않은 제목 수 (홈의 "남은 기도"와 같은 기준) */
+  prayers: { pending: number };
+  reading: {
+    /** 성경 기록 테이블이 없으면 false → 칸을 숨긴다 */
+    available: boolean;
+    /** 오늘 읽은 곳 ("시편 23편"), 없으면 null */
+    today: string | null;
+    resume: { href: string; label: string };
+  };
+}
+
 /** 관리자 › 성경: 전체 합계만 (개인별 읽기 기록은 담지 않음) */
 export interface AdminBibleStats {
   /** 읽은 사람 수 (중복 제외) */

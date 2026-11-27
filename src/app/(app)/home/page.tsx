@@ -9,6 +9,7 @@ import {
 import { StarterChecklist } from "@/features/onboarding/StarterChecklist";
 import { getBibleReadingState } from "@/services/bible";
 import { DailyVerseCard } from "@/features/bible/DailyVerseCard";
+import { MiniWindowButton } from "@/features/mini/MiniWindowButton";
 import { PrayerCard } from "@/components/PrayerCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
@@ -18,14 +19,8 @@ import {
   formatVerseRef,
   pickDailyVerse,
 } from "@/lib/bible/daily";
-import { bookNumber, chapterHref } from "@/lib/bible/text";
+import { dailyVerseHref } from "@/lib/bible/text";
 import type { ParticipatingPrayer } from "@/types/domain";
-
-/** 오늘의 말씀 → 그 장 읽기 화면 (책 이름을 못 찾으면 링크 없음) */
-function verseHref(book: string, chapter: number, verse: number): string | undefined {
-  const n = bookNumber(book);
-  return n > 0 ? chapterHref(n, chapter, verse) : undefined;
-}
 
 export const metadata: Metadata = {
   title: "홈",
@@ -66,9 +61,12 @@ export default async function HomePage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <p className="text-sm text-ink-soft">
-          {formatKoreanDateWithWeekday(today)}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm text-ink-soft">
+            {formatKoreanDateWithWeekday(today)}
+          </p>
+          <MiniWindowButton />
+        </div>
         <h1 className="mt-1 text-xl font-bold text-ink">
           안녕하세요, {profile.nickname}님.
         </h1>
@@ -90,7 +88,7 @@ export default async function HomePage() {
           text: verse.text,
           reference: formatVerseRef(verse),
           translation: VERSE_TRANSLATION,
-          href: verseHref(verse.book, verse.chapter, verse.verseStart),
+          href: dailyVerseHref(verse) ?? undefined,
         }}
         reading={reading}
       />
