@@ -111,6 +111,20 @@ export interface AdminOverview {
   checksToday: number;
 }
 
+/** 관리자 › 성경: 전체 합계만 (개인별 읽기 기록은 담지 않음) */
+export interface AdminBibleStats {
+  /** 읽은 사람 수 (중복 제외) */
+  readers: { today: number; last7: number; last30: number; total: number };
+  /** 기록된 장 수 */
+  chapters: { today: number; last7: number; total: number };
+  /** 최근 14일 (오래된 날부터, 빈 날은 0) */
+  daily: { date: string; readers: number; chapters: number }[];
+  /** 최근 30일 많이 읽힌 책 (최대 5권) */
+  topBooks: { book: number; name: string; chapters: number }[];
+  /** 하이라이트 (migrations/0014 미적용이면 null) */
+  highlights: { users: number; total: number } | null;
+}
+
 export interface AdminUser {
   id: string;
   username: string | null;

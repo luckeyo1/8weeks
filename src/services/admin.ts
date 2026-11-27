@@ -1,9 +1,12 @@
 import "server-only";
 
-import { dbAll, dbCount, dbRun } from "@/lib/db";
-import { appTodayISO } from "@/lib/date";
+import { dbAll, dbCount, dbFirst, dbRun } from "@/lib/db";
+import { addDaysISO, appTodayISO } from "@/lib/date";
+import { bookName } from "@/lib/bible/books";
+import { dailySeries } from "@/lib/bible/stats";
 import { isMissingTableError } from "@/services/bible";
 import type {
+  AdminBibleStats,
   AdminOverview,
   AdminPrayer,
   AdminPrayerParticipant,
@@ -189,6 +192,96 @@ export async function getAdminReports(): Promise<AdminReport[] | null> {
       detail: r.detail,
       createdAt: r.created_at,
     }));
+  } catch (e) {
+    if (isMissingTableError(e)) return null;
+    throw e;
+  }
+}
+
+/**
+ * 관리자 › 성경: 전체 합계만. 누가 무엇을 읽었는지는 돌려주지 않는다
+ * (성경 읽기 기록은 본인에게만 보인다 — 개인정보처리방침).
+ * 성경 기록 테이블(0008·0009)이 없으면 null, 하이라이트(0014)만 없으면 highlights 만 null.
+ */
+export async function getAdminBibleStats(): Promise<AdminBibleStats | null> {
+  const today = appTodayISO();
+  const since7 = addDaysISO(today, -6);
+  const since14 = addDaysISO(today, -13);
+  const since30 = addDaysISO(today, -29);
+  const readersSince = (since: string) =>
+    dbCount(
+      "select count(distinct user_id) as n from bible_readings where read_date >= ?",
+      [since],
+    );
+  const chaptersSince = (since: string) =>
+    dbCount(
+      "select count(*) as n from bible_chapter_reads where read_date >= ?",
+      [since],
+    );
+
+  try {
+    const [
+      readersToday,
+      readers7,
+      readers30,
+      readersTotal,
+      chaptersToday,
+      chapters7,
+      chaptersTotal,
+      dailyReaders,
+      dailyChapters,
+      topBooks,
+    ] = await Promise.all([
+      readersSince(today),
+      readersSince(since7),
+      readersSince(since30),
+      dbCount("select count(distinct user_id) as n from bible_readings"),
+      chaptersSince(today),
+      chaptersSince(since7),
+      dbCount("select count(*) as n from bible_chapter_reads"),
+      dbAll<{ date: string; n: number }>(
+        `select read_date as date, count(distinct user_id) as n from bible_readings
+         where read_date >= ? group by read_date`,
+        [since14],
+      ),
+      dbAll<{ date: string; n: number }>(
+        `select read_date as date, count(*) as n from bible_chapter_reads
+         where read_date >= ? group by read_date`,
+        [since14],
+      ),
+      dbAll<{ book: number; n: number }>(
+        `select book, count(*) as n from bible_chapter_reads
+         where read_date >= ? group by book order by n desc, book asc limit 5`,
+        [since30],
+      ),
+    ]);
+
+    let highlights: AdminBibleStats["highlights"] = null;
+    try {
+      const row = await dbFirst<{ users: number; total: number }>(
+        "select count(distinct user_id) as users, count(*) as total from bible_highlights",
+      );
+      highlights = { users: row?.users ?? 0, total: row?.total ?? 0 };
+    } catch (e) {
+      if (!isMissingTableError(e)) throw e;
+    }
+
+    return {
+      readers: {
+        today: readersToday,
+        last7: readers7,
+        last30: readers30,
+        total: readersTotal,
+      },
+      chapters: { today: chaptersToday, last7: chapters7, total: chaptersTotal },
+      daily: dailySeries(dailyReaders, dailyChapters, today),
+      topBooks: topBooks.map((b) => ({
+        book: b.book,
+        name: bookName(b.book),
+        chapters: b.n,
+      })),
+      highlights,
+    };
   } catch (e) {
     if (isMissingTableError(e)) return null;
     throw e;
