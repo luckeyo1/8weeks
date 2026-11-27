@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cn } from "@/lib/cn";
-import { formatKoreanDate, formatKoreanRange } from "@/lib/date";
+import { formatKoreanDate, formatKoreanRange, weekdayShortKo } from "@/lib/date";
 import { reportReasonLabel } from "@/features/report/schema";
 import {
   adminHideReportedPrayer,
@@ -12,6 +12,7 @@ import {
   adminResolveReport,
 } from "./actions";
 import type {
+  AdminBibleStats,
   AdminOverview,
   AdminPrayer,
   AdminReport,
@@ -19,7 +20,7 @@ import type {
   UsageStats,
 } from "@/types/domain";
 
-type Tab = "overview" | "usage" | "reports" | "users" | "prayers";
+type Tab = "overview" | "usage" | "bible" | "reports" | "users" | "prayers";
 
 export function AdminDashboard({
   overview,
@@ -27,6 +28,7 @@ export function AdminDashboard({
   prayers,
   reports,
   usage,
+  bible,
 }: {
   overview: AdminOverview;
   users: AdminUser[];
@@ -35,6 +37,8 @@ export function AdminDashboard({
   reports: AdminReport[] | null;
   /** null: 이용 통계 테이블(0013) 미적용 */
   usage: UsageStats | null;
+  /** null: 성경 읽기 기록 테이블(0008·0009) 미적용 */
+  bible: AdminBibleStats | null;
 }) {
   // 처리할 신고가 있으면 신고 탭부터
   const [tab, setTab] = useState<Tab>(reports && reports.length > 0 ? "reports" : "overview");
@@ -48,6 +52,9 @@ export function AdminDashboard({
         <TabBtn active={tab === "usage"} onClick={() => setTab("usage")}>
           이용 통계
         </TabBtn>
+        <TabBtn active={tab === "bible"} onClick={() => setTab("bible")}>
+          성경
+        </TabBtn>
         <TabBtn active={tab === "reports"} onClick={() => setTab("reports")}>
           신고 {reports?.length ?? 0}
         </TabBtn>
@@ -59,8 +66,11 @@ export function AdminDashboard({
         </TabBtn>
       </div>
 
-      {tab === "overview" && <Overview overview={overview} />}
+      {tab === "overview" && (
+        <Overview overview={overview} bibleReadersToday={bible?.readers.today ?? null} />
+      )}
       {tab === "usage" && <Usage usage={usage} />}
+      {tab === "bible" && <Bible bible={bible} />}
       {tab === "reports" && <Reports reports={reports} />}
       {tab === "users" && <Users users={users} />}
       {tab === "prayers" && <Prayers prayers={prayers} />}
@@ -68,13 +78,23 @@ export function AdminDashboard({
   );
 }
 
-function Overview({ overview }: { overview: AdminOverview }) {
+function Overview({
+  overview,
+  bibleReadersToday,
+}: {
+  overview: AdminOverview;
+  /** null: 성경 기록 테이블 미적용 → 타일 숨김 */
+  bibleReadersToday: number | null;
+}) {
   const tiles = [
     { label: "전체 사용자", value: overview.totalUsers },
     { label: "기도제목", value: overview.totalPrayers },
     { label: "함께 기도(참여)", value: overview.totalParticipations },
     { label: "누적 기도 횟수", value: overview.totalChecks },
     { label: "오늘 기도", value: overview.checksToday },
+    ...(bibleReadersToday !== null
+      ? [{ label: "오늘 성경 읽은 사람", value: bibleReadersToday }]
+      : []),
   ];
   const status = [
     { label: "진행 중", value: overview.byStatus.ACTIVE },
@@ -105,6 +125,150 @@ function Overview({ overview }: { overview: AdminOverview }) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatTiles({
+  title,
+  tiles,
+}: {
+  title: string;
+  tiles: { label: string; value: number | string }[];
+}) {
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-sm font-semibold text-ink">{title}</h3>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {tiles.map((t) => (
+          <div key={t.label} className="card p-4">
+            <p className="text-xs text-ink-soft">{t.label}</p>
+            <p className="mt-1 text-2xl font-bold text-ink tabular-nums">{t.value}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** "11/27 (금)" — 오늘은 "오늘" */
+function shortDay(iso: string, today: string): string {
+  if (iso === today) return "오늘";
+  const [, m, d] = iso.split("-");
+  return `${Number(m)}/${Number(d)} (${weekdayShortKo(iso)})`;
+}
+
+/**
+ * 성경 읽기 현황 — 전체 합계만. 누가 무엇을 읽었는지는 보여 주지 않는다
+ * (성경 읽기 기록은 본인에게만 보인다 — 개인정보처리방침).
+ */
+function Bible({ bible }: { bible: AdminBibleStats | null }) {
+  if (bible === null) {
+    return (
+      <Empty>
+        성경 읽기 기록 테이블(0008_bible_reading · 0009_bible_chapter_reads)이 아직 없어요.
+      </Empty>
+    );
+  }
+  const today = bible.daily[bible.daily.length - 1]?.date ?? "";
+  const maxReaders = Math.max(1, ...bible.daily.map((d) => d.readers));
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="text-xs text-ink-soft">
+        전체 합계예요. 누가 무엇을 읽었는지(개인별 기록)는 보여 주지 않아요.
+      </p>
+
+      <StatTiles
+        title="성경 읽은 사람"
+        tiles={[
+          { label: "오늘", value: bible.readers.today },
+          { label: "최근 7일", value: bible.readers.last7 },
+          { label: "최근 30일", value: bible.readers.last30 },
+          { label: "지금까지", value: bible.readers.total },
+        ]}
+      />
+      <StatTiles
+        title="기록된 장"
+        tiles={[
+          { label: "오늘", value: bible.chapters.today },
+          { label: "최근 7일", value: bible.chapters.last7 },
+          { label: "지금까지", value: bible.chapters.total },
+        ]}
+      />
+      <StatTiles
+        title="하이라이트"
+        tiles={
+          bible.highlights
+            ? [
+                { label: "쓰는 사람", value: bible.highlights.users },
+                { label: "표시한 절", value: bible.highlights.total },
+              ]
+            : [{ label: "준비 전 (0014 미적용)", value: "—" }]
+        }
+      />
+
+      <section className="card flex flex-col gap-3 p-4">
+        <div>
+          <h3 className="text-sm font-semibold text-ink">최근 14일</h3>
+          <p className="text-xs text-ink-soft">막대는 그날 성경을 읽은 사람 수예요.</p>
+        </div>
+        <table className="w-full border-collapse text-sm">
+          <caption className="sr-only">최근 14일 날짜별 성경 읽은 사람 수와 기록된 장 수</caption>
+          <thead className="sr-only">
+            <tr>
+              <th scope="col">날짜</th>
+              <th scope="col">막대</th>
+              <th scope="col">읽은 사람</th>
+              <th scope="col">기록된 장</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bible.daily.map((d) => (
+              <tr
+                key={d.date}
+                title={`${formatKoreanDate(d.date)}: ${d.readers}명 · ${d.chapters}장`}
+              >
+                <th
+                  scope="row"
+                  className={cn(
+                    "w-[72px] py-1 pr-2 text-left text-xs font-normal tabular-nums",
+                    d.date === today ? "font-semibold text-ink" : "text-ink-soft",
+                  )}
+                >
+                  {shortDay(d.date, today)}
+                </th>
+                <td className="py-1 pr-2" aria-hidden>
+                  {d.readers > 0 && (
+                    <div
+                      className="h-2.5 min-w-[3px] rounded-r-[4px] bg-primary"
+                      style={{ width: `${(d.readers / maxReaders) * 100}%` }}
+                    />
+                  )}
+                </td>
+                <td className="w-12 py-1 text-right tabular-nums text-ink">{d.readers}명</td>
+                <td className="w-14 py-1 text-right tabular-nums text-ink-soft">{d.chapters}장</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="card flex flex-col gap-2 p-4">
+        <h3 className="text-sm font-semibold text-ink">많이 읽힌 책 (최근 30일)</h3>
+        {bible.topBooks.length === 0 ? (
+          <p className="text-sm text-ink-soft">최근 30일 동안 기록된 장이 없어요.</p>
+        ) : (
+          <ol className="flex flex-col divide-y divide-line">
+            {bible.topBooks.map((b, i) => (
+              <li key={b.book} className="flex items-center gap-3 py-2 text-sm">
+                <span className="w-5 text-right tabular-nums text-ink-soft">{i + 1}</span>
+                <span className="flex-1 text-ink">{b.name}</span>
+                <span className="tabular-nums text-ink">{b.chapters}장</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
     </div>
   );
 }

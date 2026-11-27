@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireProfile } from "@/features/auth/service";
 import { requireAdmin } from "@/features/admin/guard";
 import {
+  getAdminBibleStats,
   getAdminOverview,
   getAdminPrayers,
   getAdminReports,
@@ -21,12 +22,13 @@ export default async function AdminPage() {
   await requireProfile();
   await requireAdmin(); // 관리자 아니면 404
 
-  const [overview, users, prayers, reports, usage] = await Promise.all([
+  const [overview, users, prayers, reports, usage, bible] = await Promise.all([
     getAdminOverview(),
     getAdminUsers(),
     getAdminPrayers(),
     getAdminReports(),
     getUsageStats(),
+    getAdminBibleStats(),
   ]);
 
   return (
@@ -43,6 +45,7 @@ export default async function AdminPage() {
         prayers={prayers}
         reports={reports}
         usage={usage}
+        bible={bible}
       />
     </div>
   );
