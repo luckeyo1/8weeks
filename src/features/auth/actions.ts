@@ -223,6 +223,9 @@ export async function deleteAccount(): Promise<ActionResult> {
     await deleteOptional("delete from bible_chapter_reads where user_id = ?", [
       uid,
     ]);
+    await deleteOptional("delete from bible_highlights where user_id = ?", [
+      uid,
+    ]);
     await deleteOptional("delete from push_subscriptions where user_id = ?", [uid]);
     // 신고 기록: 내가 한 신고 + 내 기도제목에 접수된 신고
     await deleteOptional(

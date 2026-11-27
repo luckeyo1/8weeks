@@ -27,6 +27,9 @@ import {
 import { setChapterReadToday } from "./actions";
 import { ListenBar, SPEECH_PROBLEM_MESSAGE } from "./ListenBar";
 import { VoiceSheet } from "./VoiceSheet";
+import { HighlightBar } from "./HighlightBar";
+import { useVerseHighlights } from "./useVerseHighlights";
+import { HIGHLIGHT_STYLE, type HighlightColor } from "@/lib/bible/highlights";
 import {
   requestListenOnArrival,
   takeListenOnArrival,
@@ -88,6 +91,7 @@ type Load =
  * - 맨 아래 "이 장 다 읽었어요"는 홈의 '오늘 읽은 곳'·통독 현황과 같은 기록에 더해진다.
  * - #v16 처럼 절 번호가 주소에 있으면 그 절로 이동해 잠시 표시한다(오늘의 말씀에서 들어올 때).
  * - "소리로 듣기": 기기 내장 음성으로 절마다 읽고, 읽는 절을 표시한다(useChapterSpeech).
+ * - 하이라이트: 절을 눌러 고르고 색을 칠한다(useVerseHighlights). 본인에게만 보인다.
  */
 export function ChapterReader({
   book,
@@ -95,12 +99,15 @@ export function ChapterReader({
   recordAvailable,
   initialReadToday,
   readBefore,
+  initialHighlights,
 }: {
   book: number;
   chapter: number;
   recordAvailable: boolean;
   initialReadToday: boolean;
   readBefore: boolean;
+  /** null: 하이라이트 테이블(0014) 미적용 → 기능 숨김 */
+  initialHighlights: Record<number, HighlightColor> | null;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -118,6 +125,16 @@ export function ChapterReader({
     onEnded: () => track("bible_listen_completed"),
   });
   const listening = speech.status !== "idle";
+  const hl = useVerseHighlights(book, chapter, initialHighlights, (message) =>
+    toast.show(message, "error"),
+  );
+  const selecting = hl.selected.size > 0;
+
+  /** 절 누르기: 글자를 드래그해 선택하는 중이면 하이라이트 선택으로 바꾸지 않는다 */
+  function onVerseTap(verse: number) {
+    if (window.getSelection()?.toString()) return;
+    hl.toggle(verse);
+  }
 
   const unit = chapterUnit(book);
   const title = `${bookName(book)} ${chapter}${unit}`;
@@ -292,6 +309,9 @@ export function ChapterReader({
       {speech.supported && (
         <VoiceSheet open={voiceOpen} onClose={() => setVoiceOpen(false)} speech={speech} />
       )}
+      {load.state === "ready" && hl.showHint && (
+        <p className="-mt-2 text-[13px] text-ink-soft">절을 누르면 하이라이트할 수 있어요.</p>
+      )}
 
       {load.state === "ready" && (
         <article
@@ -301,22 +321,49 @@ export function ChapterReader({
         >
           {load.verses.map((text, i) => {
             const n = i + 1;
+            const color = hl.highlights[n];
+            const isSelected = hl.selected.has(n);
+            const isSpoken = speech.verse === i;
             return (
               <p
                 key={n}
                 id={`v${n}`}
-                aria-current={speech.verse === i ? "true" : undefined}
+                aria-current={isSpoken ? "true" : undefined}
+                {...(hl.available && {
+                  role: "button",
+                  tabIndex: 0,
+                  "aria-pressed": isSelected,
+                  onClick: () => onVerseTap(n),
+                  onKeyDown: (e: React.KeyboardEvent) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      hl.toggle(n);
+                    }
+                  },
+                })}
                 className={cn(
                   "scroll-mt-20 rounded-lg px-1 transition-colors duration-700",
-                  focusVerse === n && "bg-primary-soft",
-                  // 지금 읽는 절: 소리를 따라 눈으로 찾기 쉽게 조금 더 진하게
-                  speech.verse === i && "bg-primary/15 duration-200",
+                  hl.available &&
+                    "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
+                  // 하이라이트(내가 칠한 색)
+                  color && HIGHLIGHT_STYLE[color].bg,
+                  // 오늘의 말씀에서 들어와 잠깐 표시되는 절
+                  !color && focusVerse === n && "bg-primary-soft",
+                  color && focusVerse === n && "ring-2 ring-primary/30",
+                  // 지금 읽는 절: 왼쪽 막대 (+ 하이라이트가 없으면 옅은 배경)
+                  isSpoken && "shadow-[inset_3px_0_0_#6E7D66] duration-200",
+                  isSpoken && !color && "bg-primary/15",
+                  // 고른 절
+                  isSelected && "ring-2 ring-primary",
                 )}
               >
                 <sup className="mr-1.5 select-none text-[0.62em] font-semibold text-primary">
                   {n}
                 </sup>
                 {text}
+                {color && (
+                  <span className="sr-only"> ({HIGHLIGHT_STYLE[color].name} 하이라이트)</span>
+                )}
               </p>
             );
           })}
@@ -390,7 +437,15 @@ export function ChapterReader({
 
       <p className="pb-2 pt-2 text-center text-[12px] text-ink-soft/80">{BIBLE_TEXT_SOURCE}</p>
 
-      {listening && load.state === "ready" && (
+      {selecting && load.state === "ready" && (
+        <>
+          {/* 색 고르기 막대에 가려지지 않게 아래 여백 (듣기 막대는 잠시 숨기고 듣기는 계속) */}
+          <div aria-hidden className="h-28" />
+          <HighlightBar hl={hl} />
+        </>
+      )}
+
+      {listening && !selecting && load.state === "ready" && (
         <>
           {/* 듣기 막대에 가려지지 않게 아래 여백 */}
           <div aria-hidden className={speech.status === "ended" ? "h-36" : "h-20"} />

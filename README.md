@@ -234,7 +234,7 @@ src/
     bible/                  #   오늘의 말씀(verses.ts, 자동 생성) · 66권/장 도우미(books.ts)
   types/                    # db(Row) / domain(화면용) 타입
 worker.ts                   # Workers 진입점: OpenNext 워커 + 크론(매일 알림)
-migrations/0001_init.sql    # D1 스키마 (SQLite) — 이후 0002~0013 증분
+migrations/0001_init.sql    # D1 스키마 (SQLite) — 이후 0002~0014 증분
 seed.sql                    # 개발용 seed (마이그레이션과 분리)
 wrangler.jsonc              # Workers + D1 바인딩
 open-next.config.ts
@@ -279,6 +279,8 @@ open-next.config.ts
 - [x] 성경 듣기 (기기 내장 음성으로 한 장을 소리로 읽기 — 읽는 절 표시·따라가기, 일시정지/이어 듣기,
   이전/다음 절, 속도 0.8~1.5배, 읽는 동안 화면 켜 둠, 끝나면 "다 읽었어요"·다음 장 듣기 권유,
   목소리 고르기·들어보기 + 기기별 고음질 음성 받는 법 안내)
+- [x] 성경 하이라이트 (절을 눌러 여러 절 선택 → 4가지 색으로 표시·지우기, 계정에 저장·본인만 보임,
+  성경 탭 "내 하이라이트" + `/bible/highlights` 모아보기, migrations/0014)
 - [x] 이용 통계 (기능별 하루 사용 횟수 합계만, 누가 썼는지 저장 안 함 → 관리자 › 이용 통계, migrations/0013)
 - [x] 기도제목 신고 (함께 기도하는 사람 → 운영자 관리 화면에서 확인 완료/숨기기,
   구글 플레이 사용자 제작 콘텐츠 정책 대응, migrations/0010)
@@ -323,6 +325,18 @@ open-next.config.ts
     기기에 기억하고(`pt-bible-voice`), 그 음성이 사라지면 자동으로 고릅니다.
   - 코드: `src/lib/bible/speech.ts`(문장 나누기·음성 고르기, 테스트 있음),
     `src/features/bible/useChapterSpeech.ts`(재생), `ListenBar.tsx`(조절 막대), `VoiceSheet.tsx`(목소리).
+- **성경 하이라이트**: 절 단위로 `bible_highlights`(사용자, 책, 장, 절 → 색)에 저장합니다. 본인에게만 보이고
+  계정 삭제 시 함께 지웁니다. 화면에 먼저 반영하고 저장하며, 실패하면 그 절만 되돌립니다.
+  - 절을 누르면 선택(키보드 Enter·Space, Esc 로 해제), 글자를 드래그해 선택하는 중에는 바꾸지 않습니다.
+  - 모아보기의 본문은 장 JSON(`/bibledata`)에서 가져옵니다(서비스워커가 보관 → 오프라인에서도 보임).
+  - 코드: `src/lib/bible/highlights.ts`(색·검증·묶기, 테스트 있음), `useVerseHighlights.ts`, `HighlightBar.tsx`,
+    `HighlightList.tsx`, `src/app/(app)/bible/highlights/page.tsx`.
+  - `0014_bible_highlights` 적용 전에는 하이라이트만 숨겨집니다. D1 콘솔에서는 한 줄씩:
+
+    ```sql
+    create table if not exists bible_highlights (user_id text not null references users(id), book integer not null, chapter integer not null, verse integer not null, color text not null check (color in ('yellow','green','blue','pink')), created_at text not null default (datetime('now')), updated_at text not null default (datetime('now')), primary key (user_id, book, chapter, verse));
+    create index if not exists bible_highlights_recent_idx on bible_highlights(user_id, updated_at);
+    ```
 - **이용 통계**: `track()`(`src/lib/analytics.ts`)이 이벤트 이름만 `/api/track` 으로 보내고, 서버는
   `usage_events`(날짜, 이벤트, 횟수)에 합계만 올립니다. 사용자 id·기도 정보는 저장하지 않으며 로그인한
   요청만 셉니다. 관리자 화면 › 이용 통계에서 최근 7일/그 전 7일과 듣기 비율을 봅니다.
